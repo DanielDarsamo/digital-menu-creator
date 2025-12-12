@@ -20,7 +20,7 @@ const HeroSection = () => {
           <img 
             src={logo} 
             alt="Fortaleza de Sabores Logo" 
-            className="w-48 md:w-64 h-auto mx-auto mb-6"
+            className="w-48 h-48 md:w-64 md:h-64 rounded-full object-cover mx-auto mb-6"
           />
         </div>
         
