@@ -1,4 +1,5 @@
 import { restaurantInfo } from "@/data/menuData";
+import logo from "@/assets/logo.png";
 
 const HeroSection = () => {
   return (
@@ -14,11 +15,13 @@ const HeroSection = () => {
       </div>
       
       <div className="relative z-10 container mx-auto px-4 text-center">
-        {/* Logo/Icon */}
+        {/* Logo */}
         <div className="mb-8 animate-fade-up">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 border-2 border-primary mb-6">
-            <span className="text-5xl">🏰</span>
-          </div>
+          <img 
+            src={logo} 
+            alt="Fortaleza de Sabores Logo" 
+            className="w-48 md:w-64 h-auto mx-auto mb-6"
+          />
         </div>
         
         {/* Restaurant Name */}
