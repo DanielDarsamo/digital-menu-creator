@@ -6,11 +6,15 @@ import SearchFilter from "@/components/menu/SearchFilter";
 import MenuSection from "@/components/menu/MenuSection";
 import WhatsAppButton from "@/components/menu/WhatsAppButton";
 import Footer from "@/components/menu/Footer";
+import CartButton from "@/components/menu/CartButton";
+import OrderCart from "@/components/menu/OrderCart";
+import { OrderProvider } from "@/contexts/OrderContext";
 
-const Index = () => {
+const IndexContent = () => {
   const [activeCategory, setActiveCategory] = useState(menuCategories[0]?.id || "");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -73,8 +77,18 @@ const Index = () => {
         ))}
       </main>
       <Footer />
+      <CartButton onClick={() => setIsCartOpen(true)} />
       <WhatsAppButton />
+      <OrderCart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <OrderProvider>
+      <IndexContent />
+    </OrderProvider>
   );
 };
 
