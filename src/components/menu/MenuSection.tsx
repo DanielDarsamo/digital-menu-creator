@@ -1,5 +1,7 @@
-import { MenuCategory } from "@/data/menuData";
+import { useState } from "react";
+import { MenuCategory, MenuItem } from "@/data/menuData";
 import MenuCard from "./MenuCard";
+import MenuItemModal from "./MenuItemModal";
 
 interface MenuSectionProps {
   category: MenuCategory;
@@ -7,6 +9,8 @@ interface MenuSectionProps {
 }
 
 const MenuSection = ({ category, filteredItems }: MenuSectionProps) => {
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+
   if (filteredItems.length === 0) return null;
 
   return (
@@ -29,10 +33,22 @@ const MenuSection = ({ category, filteredItems }: MenuSectionProps) => {
         {/* Items Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredItems.map((item, index) => (
-            <MenuCard key={item.id} item={item} index={index} />
+            <MenuCard
+              key={item.id}
+              item={item}
+              index={index}
+              onClick={() => setSelectedItem(item)}
+            />
           ))}
         </div>
       </div>
+
+      {/* Item Modal */}
+      <MenuItemModal
+        item={selectedItem}
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+      />
     </section>
   );
 };
