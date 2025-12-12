@@ -28,9 +28,14 @@ const Footer = () => {
             <h4 className="font-display text-lg font-semibold text-foreground mb-2">
               Localização
             </h4>
-            <p className="font-body text-sm text-muted-foreground">
+            <a
+              href={restaurantInfo.locationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-body text-sm text-primary hover:text-primary/80 transition-all duration-300 hover:scale-105 cursor-pointer"
+            >
               {restaurantInfo.address}
-            </p>
+            </a>
           </div>
 
           {/* Phone */}

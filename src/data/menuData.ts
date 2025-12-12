@@ -200,5 +200,6 @@ export const restaurantInfo = {
   phone: "87 183 8947",
   whatsapp: "258871838947",
   address: "Casa da Cultura, Av. Ho Chi Min, esquina com a Av. Albert Lithuli, Cidade de Maputo",
+  locationUrl: "https://maps.app.goo.gl/ntLd49QPh6rs2oqf8",
   hours: "Segunda a Domingo: 11:00 - 23:00",
 };
