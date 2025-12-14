@@ -2,10 +2,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Minus, Trash2, MessageCircle, ShoppingBag } from "lucide-react";
+import { Plus, Minus, Trash2, MessageCircle, ShoppingBag, Send } from "lucide-react";
 import { useOrder } from "@/contexts/OrderContext";
 import { restaurantInfo } from "@/data/menuData";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
+import CustomerInfoDialog from "./CustomerInfoDialog";
+import { OrderService } from "@/services/orderService";
+import { toast } from "sonner";
 
 interface OrderCartProps {
   isOpen: boolean;
@@ -34,21 +38,86 @@ const formatPrice = (price: number) => {
 
 const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
   const { items, totalItems, totalPrice, updateQuantity, removeItem, clearCart } = useOrder();
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+
+  const handleCustomerInfoSubmit = (customerInfo: {
+    name?: string;
+    table?: string;
+    notes?: string;
+    sendToWhatsApp: boolean;
+    sendToAdmin: boolean;
+  }) => {
+    const orderItems = items.map(cartItem => ({
+      id: cartItem.item.id,
+      name: cartItem.item.name,
+      quantity: cartItem.quantity,
+      price: cartItem.item.price,
+      category: cartItem.item.category,
+    }));
+
+    // Create order in the system
+    const order = OrderService.createOrder(
+      orderItems,
+      totalPrice,
+      {
+        name: customerInfo.name,
+        table: customerInfo.table,
+        notes: customerInfo.notes,
+      },
+      customerInfo.sendToWhatsApp,
+      customerInfo.sendToAdmin
+    );
+
+    // Send to WhatsApp if requested
+    if (customerInfo.sendToWhatsApp) {
+      let message = `🍽️ *Pedido #${order.orderNumber}*\\n\\n`;
+
+      if (customerInfo.name) message += `👤 Nome: ${customerInfo.name}\\n`;
+      if (customerInfo.table) message += `📍 Mesa: ${customerInfo.table}\\n`;
+      message += `\\n*Itens do Pedido:*\\n`;
+
+      items.forEach((cartItem) => {
+        const price = typeof cartItem.item.price === "number"
+          ? formatPrice(cartItem.item.price * cartItem.quantity)
+          : cartItem.item.price + " MT";
+        message += `• ${cartItem.quantity}x ${cartItem.item.name} - ${price}\\n`;
+      });
+
+      message += `\\n💰 *Total: ${formatPrice(totalPrice)}*`;
+
+      if (customerInfo.notes) {
+        message += `\\n\\n📝 Observações: ${customerInfo.notes}`;
+      }
+
+      message += `\\n\\nPor favor, confirme a disponibilidade. Obrigado!`;
+
+      const encodedMessage = encodeURIComponent(message);
+      window.open(`https://wa.me/${restaurantInfo.whatsapp}?text=${encodedMessage}`, "_blank");
+    }
+
+    // Show success message
+    let successMessage = `Pedido #${order.orderNumber} criado com sucesso!`;
+    if (customerInfo.sendToAdmin && customerInfo.sendToWhatsApp) {
+      successMessage += " Enviado para o sistema e WhatsApp.";
+    } else if (customerInfo.sendToAdmin) {
+      successMessage += " Enviado para o sistema.";
+    } else if (customerInfo.sendToWhatsApp) {
+      successMessage += " Enviado via WhatsApp.";
+    }
+
+    toast.success(successMessage, {
+      description: "Seu pedido está sendo processado.",
+      duration: 5000,
+    });
+
+    // Clear cart and close dialogs
+    clearCart();
+    setIsCustomerDialogOpen(false);
+    onClose();
+  };
 
   const handleSendWhatsApp = () => {
-    let message = `Olá! Gostaria de fazer o seguinte pedido:\n\n`;
-    
-    items.forEach((cartItem) => {
-      const price = typeof cartItem.item.price === "number" 
-        ? formatPrice(cartItem.item.price * cartItem.quantity)
-        : cartItem.item.price + " MT";
-      message += `• ${cartItem.quantity}x ${cartItem.item.name} - ${price}\n`;
-    });
-    
-    message += `\n📋 Total: ${formatPrice(totalPrice)}\n\nPor favor, confirme a disponibilidade. Obrigado!`;
-    
-    const encodedMessage = encodeURIComponent(message);
-    window.open(`https://wa.me/${restaurantInfo.whatsapp}?text=${encodedMessage}`, "_blank");
+    setIsCustomerDialogOpen(true);
   };
 
   return (
@@ -83,7 +152,7 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
                 {items.map((cartItem) => {
                   const imageUrl = cartItem.item.image || placeholderImages[cartItem.item.category] || placeholderImages.entradas;
                   const itemPrice = typeof cartItem.item.price === "number" ? cartItem.item.price : 0;
-                  
+
                   return (
                     <div
                       key={cartItem.item.id}
@@ -94,7 +163,7 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
                         alt={cartItem.item.name}
                         className="w-20 h-20 rounded-lg object-cover"
                       />
-                      
+
                       <div className="flex-1 min-w-0">
                         <h4 className="font-display text-foreground font-medium truncate">
                           {cartItem.item.name}
@@ -102,7 +171,7 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
                         <p className="text-primary font-semibold mt-1">
                           {formatPrice(itemPrice * cartItem.quantity)}
                         </p>
-                        
+
                         {/* Quantity Controls */}
                         <div className="flex items-center gap-3 mt-2">
                           <Button
@@ -124,7 +193,7 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
-                          
+
                           <Button
                             variant="ghost"
                             size="icon"
@@ -162,17 +231,23 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
                 onClick={handleSendWhatsApp}
                 className={cn(
                   "w-full h-14 text-lg font-semibold",
-                  "bg-green-600 text-white hover:bg-green-700",
+                  "bg-primary text-primary-foreground hover:bg-primary/90",
                   "transition-all duration-300 hover:scale-[1.02]"
                 )}
               >
-                <MessageCircle className="mr-2 h-5 w-5" />
-                Enviar Pedido via WhatsApp
+                <Send className="mr-2 h-5 w-5" />
+                Finalizar Pedido
               </Button>
             </div>
           </>
         )}
       </SheetContent>
+
+      <CustomerInfoDialog
+        isOpen={isCustomerDialogOpen}
+        onClose={() => setIsCustomerDialogOpen(false)}
+        onSubmit={handleCustomerInfoSubmit}
+      />
     </Sheet>
   );
 };
