@@ -13,6 +13,8 @@ export interface Order {
     totalPrice: number;
     customerInfo?: {
         name?: string;
+        email?: string;
+        phone?: string;
         table?: string;
         notes?: string;
     };
@@ -21,6 +23,12 @@ export interface Order {
     updatedAt: string;
     sentViaWhatsApp: boolean;
     sentToAdmin: boolean;
+    statusHistory?: {
+        oldStatus: string | null;
+        newStatus: string;
+        changedAt: string;
+        changedBy: string;
+    }[];
 }
 
 export class OrderService {
@@ -33,6 +41,8 @@ export class OrderService {
             totalPrice: parseFloat(row.total_price),
             customerInfo: {
                 name: row.customer_name || undefined,
+                email: row.customer_email || undefined,
+                phone: row.customer_phone || undefined,
                 table: row.customer_table || undefined,
                 notes: row.customer_notes || undefined,
             },
@@ -41,6 +51,12 @@ export class OrderService {
             updatedAt: row.updated_at,
             sentViaWhatsApp: row.sent_via_whatsapp,
             sentToAdmin: row.sent_to_admin,
+            statusHistory: row.status_history ? row.status_history.map((h: any) => ({
+                oldStatus: h.old_status,
+                newStatus: h.new_status,
+                changedAt: h.changed_at,
+                changedBy: h.changed_by
+            })) : undefined,
         };
     }
 
@@ -123,6 +139,8 @@ export class OrderService {
                     items: items,
                     total_price: totalPrice,
                     customer_name: customerInfo?.name || null,
+                    customer_email: customerInfo?.email || null,
+                    customer_phone: customerInfo?.phone || null,
                     customer_table: customerInfo?.table || null,
                     customer_notes: customerInfo?.notes || null,
                     status: 'pending',
@@ -257,6 +275,23 @@ export class OrderService {
             .subscribe();
 
         return subscription;
+    }
+
+    static async getCustomerOrders(email?: string, phone?: string): Promise<Order[]> {
+        if (!email && !phone) return [];
+
+        try {
+            const { data, error } = await supabase.rpc('get_customer_orders', {
+                p_email: email || null,
+                p_phone: phone || null
+            });
+
+            if (error) throw error;
+            return data ? data.map(this.dbToOrder) : [];
+        } catch (error) {
+            console.error('Failed to fetch customer orders:', error);
+            return [];
+        }
     }
 
     // Unsubscribe from real-time updates

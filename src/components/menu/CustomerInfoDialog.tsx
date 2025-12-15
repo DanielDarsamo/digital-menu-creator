@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -17,6 +17,8 @@ interface CustomerInfoDialogProps {
     onClose: () => void;
     onSubmit: (info: {
         name?: string;
+        email?: string;
+        phone?: string;
         table?: string;
         notes?: string;
         sendToWhatsApp: boolean;
@@ -26,22 +28,45 @@ interface CustomerInfoDialogProps {
 
 const CustomerInfoDialog = ({ isOpen, onClose, onSubmit }: CustomerInfoDialogProps) => {
     const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [table, setTable] = useState("");
     const [notes, setNotes] = useState("");
     const [sendToWhatsApp, setSendToWhatsApp] = useState(true);
     const [sendToAdmin, setSendToAdmin] = useState(true);
 
+    // Load saved customer info
+    useEffect(() => {
+        const saved = localStorage.getItem("customerDetails");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.name) setName(parsed.name);
+                if (parsed.email) setEmail(parsed.email);
+                if (parsed.phone) setPhone(parsed.phone);
+            } catch (e) {
+                console.error("Failed to parse saved customer details");
+            }
+        }
+    }, []);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Save details for next time
+        localStorage.setItem("customerDetails", JSON.stringify({ name, email, phone }));
+
         onSubmit({
             name: name.trim() || undefined,
+            email: email.trim() || undefined,
+            phone: phone.trim() || undefined,
             table: table.trim() || undefined,
             notes: notes.trim() || undefined,
             sendToWhatsApp,
             sendToAdmin,
         });
-        // Reset form
-        setName("");
+
+        // Reset specific fields only (keep user info)
         setTable("");
         setNotes("");
         setSendToWhatsApp(true);
@@ -50,7 +75,7 @@ const CustomerInfoDialog = ({ isOpen, onClose, onSubmit }: CustomerInfoDialogPro
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="font-display text-2xl">Finalizar Pedido</DialogTitle>
                     <DialogDescription className="font-body">
@@ -70,6 +95,35 @@ const CustomerInfoDialog = ({ isOpen, onClose, onSubmit }: CustomerInfoDialogPro
                             onChange={(e) => setName(e.target.value)}
                             className="font-body"
                         />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="email" className="font-body">
+                                Email (para histórico)
+                            </Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="seu@email.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="font-body"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone" className="font-body">
+                                Telefone (para histórico)
+                            </Label>
+                            <Input
+                                id="phone"
+                                type="tel"
+                                placeholder="84 123 4567"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                className="font-body"
+                            />
+                        </div>
                     </div>
 
                     <div className="space-y-2">
