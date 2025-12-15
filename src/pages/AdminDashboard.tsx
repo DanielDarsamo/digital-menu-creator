@@ -25,7 +25,8 @@ import {
     MapPin,
     FileText,
     RefreshCw,
-    ArrowLeft
+    ArrowLeft,
+    LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -205,15 +206,34 @@ const AdminDashboard = () => {
     const navigate = useNavigate();
     const [orders, setOrders] = useState<Order[]>([]);
     const [activeTab, setActiveTab] = useState<"all" | Order['status']>("all");
+    const [isLoading, setIsLoading] = useState(true);
 
-    const loadOrders = () => {
-        setOrders(OrderService.getAllOrders());
+    const loadOrders = async () => {
+        setIsLoading(true);
+        const fetchedOrders = await OrderService.getAllOrders();
+        setOrders(fetchedOrders);
+        setIsLoading(false);
     };
+
+    // Check authentication on mount
+    useEffect(() => {
+        const isAuthenticated = sessionStorage.getItem("adminAuthenticated");
+        if (!isAuthenticated) {
+            toast.error("Acesso não autorizado!");
+            navigate("/admin-login");
+        }
+    }, [navigate]);
 
     useEffect(() => {
         loadOrders();
 
-        // Listen for order events
+        // Subscribe to real-time order changes
+        const subscription = OrderService.subscribeToOrders((payload) => {
+            console.log('Real-time update:', payload);
+            loadOrders(); // Reload orders on any change
+        });
+
+        // Listen for custom events (for backward compatibility)
         const handleOrderCreated = () => loadOrders();
         const handleOrderUpdated = () => loadOrders();
         const handleOrderDeleted = () => loadOrders();
@@ -223,24 +243,40 @@ const AdminDashboard = () => {
         window.addEventListener('orderDeleted', handleOrderDeleted);
 
         return () => {
+            // Cleanup subscriptions
+            OrderService.unsubscribeFromOrders(subscription);
             window.removeEventListener('orderCreated', handleOrderCreated);
             window.removeEventListener('orderUpdated', handleOrderUpdated);
             window.removeEventListener('orderDeleted', handleOrderDeleted);
         };
     }, []);
 
-    const handleStatusChange = (orderId: string, status: Order['status']) => {
-        OrderService.updateOrderStatus(orderId, status);
-        toast.success("Status do pedido atualizado!", {
-            description: `Pedido marcado como ${statusConfig[status].label.toLowerCase()}`,
-        });
+    const handleStatusChange = async (orderId: string, status: Order['status']) => {
+        const updated = await OrderService.updateOrderStatus(orderId, status);
+        if (updated) {
+            toast.success("Status do pedido atualizado!", {
+                description: `Pedido marcado como ${statusConfig[status].label.toLowerCase()}`,
+            });
+        } else {
+            toast.error("Erro ao atualizar status do pedido");
+        }
     };
 
-    const handleDelete = (orderId: string) => {
+    const handleDelete = async (orderId: string) => {
         if (confirm("Tem certeza que deseja excluir este pedido?")) {
-            OrderService.deleteOrder(orderId);
-            toast.success("Pedido excluído com sucesso!");
+            const deleted = await OrderService.deleteOrder(orderId);
+            if (deleted) {
+                toast.success("Pedido excluído com sucesso!");
+            } else {
+                toast.error("Erro ao excluir pedido");
+            }
         }
+    };
+
+    const handleLogout = () => {
+        sessionStorage.removeItem("adminAuthenticated");
+        toast.success("Sessão encerrada!");
+        navigate("/admin-login");
     };
 
     const filteredOrders = activeTab === "all"
@@ -273,9 +309,15 @@ const AdminDashboard = () => {
                             </p>
                         </div>
                     </div>
-                    <Button onClick={loadOrders} variant="outline" size="icon">
-                        <RefreshCw className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button onClick={loadOrders} variant="outline" size="icon">
+                            <RefreshCw className="w-4 h-4" />
+                        </Button>
+                        <Button onClick={handleLogout} variant="outline" className="gap-2">
+                            <LogOut className="w-4 h-4" />
+                            <span className="hidden sm:inline">Sair</span>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats */}

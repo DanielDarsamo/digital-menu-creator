@@ -39,81 +39,101 @@ const formatPrice = (price: number) => {
 const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
   const { items, totalItems, totalPrice, updateQuantity, removeItem, clearCart } = useOrder();
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCustomerInfoSubmit = (customerInfo: {
+  const handleCustomerInfoSubmit = async (customerInfo: {
     name?: string;
     table?: string;
     notes?: string;
     sendToWhatsApp: boolean;
     sendToAdmin: boolean;
   }) => {
-    const orderItems = items.map(cartItem => ({
-      id: cartItem.item.id,
-      name: cartItem.item.name,
-      quantity: cartItem.quantity,
-      price: cartItem.item.price,
-      category: cartItem.item.category,
-    }));
+    setIsSubmitting(true);
 
-    // Create order in the system
-    const order = OrderService.createOrder(
-      orderItems,
-      totalPrice,
-      {
-        name: customerInfo.name,
-        table: customerInfo.table,
-        notes: customerInfo.notes,
-      },
-      customerInfo.sendToWhatsApp,
-      customerInfo.sendToAdmin
-    );
+    try {
+      const orderItems = items.map(cartItem => ({
+        id: cartItem.item.id,
+        name: cartItem.item.name,
+        quantity: cartItem.quantity,
+        price: cartItem.item.price,
+        category: cartItem.item.category,
+      }));
 
-    // Send to WhatsApp if requested
-    if (customerInfo.sendToWhatsApp) {
-      let message = `🍽️ *Pedido #${order.orderNumber}*\\n\\n`;
+      // Create order in the system
+      const order = await OrderService.createOrder(
+        orderItems,
+        totalPrice,
+        {
+          name: customerInfo.name,
+          table: customerInfo.table,
+          notes: customerInfo.notes,
+        },
+        customerInfo.sendToWhatsApp,
+        customerInfo.sendToAdmin
+      );
 
-      if (customerInfo.name) message += `👤 Nome: ${customerInfo.name}\\n`;
-      if (customerInfo.table) message += `📍 Mesa: ${customerInfo.table}\\n`;
-      message += `\\n*Itens do Pedido:*\\n`;
-
-      items.forEach((cartItem) => {
-        const price = typeof cartItem.item.price === "number"
-          ? formatPrice(cartItem.item.price * cartItem.quantity)
-          : cartItem.item.price + " MT";
-        message += `• ${cartItem.quantity}x ${cartItem.item.name} - ${price}\\n`;
-      });
-
-      message += `\\n💰 *Total: ${formatPrice(totalPrice)}*`;
-
-      if (customerInfo.notes) {
-        message += `\\n\\n📝 Observações: ${customerInfo.notes}`;
+      if (!order) {
+        toast.error("Erro ao criar pedido", {
+          description: "Por favor, tente novamente.",
+        });
+        setIsSubmitting(false);
+        return;
       }
 
-      message += `\\n\\nPor favor, confirme a disponibilidade. Obrigado!`;
+      // Send to WhatsApp if requested
+      if (customerInfo.sendToWhatsApp) {
+        let message = `🍽️ *Pedido #${order.orderNumber}*\\n\\n`;
 
-      const encodedMessage = encodeURIComponent(message);
-      window.open(`https://wa.me/${restaurantInfo.whatsapp}?text=${encodedMessage}`, "_blank");
+        if (customerInfo.name) message += `👤 Nome: ${customerInfo.name}\\n`;
+        if (customerInfo.table) message += `📍 Mesa: ${customerInfo.table}\\n`;
+        message += `\\n*Itens do Pedido:*\\n`;
+
+        items.forEach((cartItem) => {
+          const price = typeof cartItem.item.price === "number"
+            ? formatPrice(cartItem.item.price * cartItem.quantity)
+            : cartItem.item.price + " MT";
+          message += `• ${cartItem.quantity}x ${cartItem.item.name} - ${price}\\n`;
+        });
+
+        message += `\\n💰 *Total: ${formatPrice(totalPrice)}*`;
+
+        if (customerInfo.notes) {
+          message += `\\n\\n📝 Observações: ${customerInfo.notes}`;
+        }
+
+        message += `\\n\\nPor favor, confirme a disponibilidade. Obrigado!`;
+
+        const encodedMessage = encodeURIComponent(message);
+        window.open(`https://wa.me/${restaurantInfo.whatsapp}?text=${encodedMessage}`, "_blank");
+      }
+
+      // Show success message
+      let successMessage = `Pedido #${order.orderNumber} criado com sucesso!`;
+      if (customerInfo.sendToAdmin && customerInfo.sendToWhatsApp) {
+        successMessage += " Enviado para o sistema e WhatsApp.";
+      } else if (customerInfo.sendToAdmin) {
+        successMessage += " Enviado para o sistema.";
+      } else if (customerInfo.sendToWhatsApp) {
+        successMessage += " Enviado via WhatsApp.";
+      }
+
+      toast.success(successMessage, {
+        description: "Seu pedido está sendo processado.",
+        duration: 5000,
+      });
+
+      // Clear cart and close dialogs
+      clearCart();
+      setIsCustomerDialogOpen(false);
+      onClose();
+    } catch (error) {
+      console.error("Error submitting order:", error);
+      toast.error("Erro ao processar pedido", {
+        description: "Por favor, tente novamente.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Show success message
-    let successMessage = `Pedido #${order.orderNumber} criado com sucesso!`;
-    if (customerInfo.sendToAdmin && customerInfo.sendToWhatsApp) {
-      successMessage += " Enviado para o sistema e WhatsApp.";
-    } else if (customerInfo.sendToAdmin) {
-      successMessage += " Enviado para o sistema.";
-    } else if (customerInfo.sendToWhatsApp) {
-      successMessage += " Enviado via WhatsApp.";
-    }
-
-    toast.success(successMessage, {
-      description: "Seu pedido está sendo processado.",
-      duration: 5000,
-    });
-
-    // Clear cart and close dialogs
-    clearCart();
-    setIsCustomerDialogOpen(false);
-    onClose();
   };
 
   const handleSendWhatsApp = () => {
