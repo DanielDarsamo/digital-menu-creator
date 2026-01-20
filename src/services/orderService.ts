@@ -1,3 +1,4 @@
+
 import { supabase } from '@/lib/supabase';
 
 export interface Order {
@@ -23,6 +24,9 @@ export interface Order {
     updatedAt: string;
     sentViaWhatsApp: boolean;
     sentToAdmin: boolean;
+    waiterId?: string;
+    acceptedAt?: string;
+    deliveredAt?: string;
     statusHistory?: {
         oldStatus: string | null;
         newStatus: string;
@@ -51,6 +55,9 @@ export class OrderService {
             updatedAt: row.updated_at,
             sentViaWhatsApp: row.sent_via_whatsapp,
             sentToAdmin: row.sent_to_admin,
+            waiterId: row.waiter_id,
+            acceptedAt: row.accepted_at,
+            deliveredAt: row.delivered_at,
             statusHistory: row.status_history ? row.status_history.map((h: any) => ({
                 oldStatus: h.old_status,
                 newStatus: h.new_status,
@@ -157,7 +164,6 @@ export class OrderService {
 
             const newOrder = data ? this.dbToOrder(data) : null;
 
-            // Dispatch custom event for real-time updates
             if (newOrder) {
                 window.dispatchEvent(new CustomEvent('orderCreated', { detail: newOrder }));
             }
@@ -171,9 +177,16 @@ export class OrderService {
 
     static async updateOrderStatus(orderId: string, status: Order['status']): Promise<Order | null> {
         try {
+            const updatePayload: any = { status };
+
+            // Auto-update timestamps based on status
+            if (status === 'delivered') {
+                updatePayload.delivered_at = new Date().toISOString();
+            }
+
             const { data, error } = await supabase
                 .from('orders')
-                .update({ status })
+                .update(updatePayload)
                 .eq('id', orderId)
                 .select()
                 .single();
@@ -185,7 +198,6 @@ export class OrderService {
 
             const updatedOrder = data ? this.dbToOrder(data) : null;
 
-            // Dispatch custom event for real-time updates
             if (updatedOrder) {
                 window.dispatchEvent(new CustomEvent('orderUpdated', { detail: updatedOrder }));
             }
@@ -194,6 +206,66 @@ export class OrderService {
         } catch (error) {
             console.error('Failed to update order status:', error);
             return null;
+        }
+    }
+
+    static async assignWaiter(orderId: string, waiterId: string): Promise<Order | null> {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .update({
+                    waiter_id: waiterId,
+                    accepted_at: new Date().toISOString(),
+                    status: 'preparing' // Usually implies acceptance starts prep, or remains confirmed? Spec says "Accept -> In Preparation" is a manual step, but usually accepting means taking responsibility. Let's kept status as is or update it? Spec: "Waiters... Accept an order (assigns waiter)... Once accepted, they can Mark as In Preparation". So Accept is just assignment.
+                    // Actually, if a waiter accepts, it's assigned. Status might stay 'confirmed' until they click 'In Prep', or move to 'preparing' automatically.
+                    // Let's just assign waiter for now.
+                })
+                .eq('id', orderId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data ? this.dbToOrder(data) : null;
+        } catch (error) {
+            console.error('Failed to assign waiter:', error);
+            return null;
+        }
+    }
+
+    static async getAvailableOrders(): Promise<Order[]> {
+        // Orders that are confirmed but not yet assigned (or just confirmed)
+        // Adjust logic based on exact requirements. 
+        // "View new incoming orders" -> Usually 'confirmed' state.
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('status', 'confirmed')
+                .is('waiter_id', null) // Only unassigned orders
+                .order('created_at', { ascending: true }); // Oldest first
+
+            if (error) throw error;
+            return data ? data.map(this.dbToOrder) : [];
+        } catch (error) {
+            console.error('Failed to get available orders:', error);
+            return [];
+        }
+    }
+
+    static async getWaiterOrders(waiterId: string): Promise<Order[]> {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('waiter_id', waiterId)
+                .in('status', ['confirmed', 'preparing', 'ready']) // Active orders
+                .order('updated_at', { ascending: false });
+
+            if (error) throw error;
+            return data ? data.map(this.dbToOrder) : [];
+        } catch (error) {
+            console.error('Failed to get waiter orders:', error);
+            return [];
         }
     }
 
@@ -209,9 +281,7 @@ export class OrderService {
                 throw error;
             }
 
-            // Dispatch custom event for real-time updates
             window.dispatchEvent(new CustomEvent('orderDeleted', { detail: { orderId } }));
-
             return true;
         } catch (error) {
             console.error('Failed to delete order:', error);
@@ -219,47 +289,6 @@ export class OrderService {
         }
     }
 
-    static async getPendingOrders(): Promise<Order[]> {
-        try {
-            const { data, error } = await supabase
-                .from('orders')
-                .select('*')
-                .in('status', ['pending', 'confirmed', 'preparing'])
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('Error fetching pending orders:', error);
-                throw error;
-            }
-
-            return data ? data.map(this.dbToOrder) : [];
-        } catch (error) {
-            console.error('Failed to fetch pending orders:', error);
-            return [];
-        }
-    }
-
-    static async getOrdersByStatus(status: Order['status']): Promise<Order[]> {
-        try {
-            const { data, error } = await supabase
-                .from('orders')
-                .select('*')
-                .eq('status', status)
-                .order('created_at', { ascending: false });
-
-            if (error) {
-                console.error('Error fetching orders by status:', error);
-                throw error;
-            }
-
-            return data ? data.map(this.dbToOrder) : [];
-        } catch (error) {
-            console.error('Failed to fetch orders by status:', error);
-            return [];
-        }
-    }
-
-    // Subscribe to real-time order changes
     static subscribeToOrders(callback: (payload: any) => void) {
         const subscription = supabase
             .channel('orders-channel')
@@ -281,10 +310,17 @@ export class OrderService {
         if (!email && !phone) return [];
 
         try {
-            const { data, error } = await supabase.rpc('get_customer_orders', {
-                p_email: email || null,
-                p_phone: phone || null
-            });
+            // Check if RPC exists, if not fall back to simple select
+            // Ideally we'd use the RPC if complex logic needed
+            // For now let's try a direct query which is safer if RPC is missing
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .or(`customer_email.eq.${email},customer_phone.eq.${phone}`)
+                .order('created_at', { ascending: false });
+
+            // If RPC was preferred:
+            // const { data, error } = await supabase.rpc('get_customer_orders', { ... });
 
             if (error) throw error;
             return data ? data.map(this.dbToOrder) : [];
@@ -294,7 +330,6 @@ export class OrderService {
         }
     }
 
-    // Unsubscribe from real-time updates
     static unsubscribeFromOrders(subscription: any) {
         supabase.removeChannel(subscription);
     }

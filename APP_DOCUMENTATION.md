@@ -1,13 +1,14 @@
 # 📘 Fortaleza Digital Menu - Application Documentation
 
 ## 1. System Overview
-**Fortaleza Digital Menu** is a modern, real-time web application designed for restaurants to manage digital orders. It consists of two main interfaces:
-1.  **Client-Facing Menu**: A responsive web app for customers to browse, order, and track status.
-2.  **Admin Dashboard**: A secure panel for staff to manage orders in real-time.
+**Fortaleza Digital Menu** is a modern, real-time web application designed for restaurants to manage digital orders. It transforms operations into a role-based platform with distinct interfaces for:
+1.  **Customers**: Public menu to browse, order, and track status.
+2.  **Admins**: Full control dashboard for orders, menu, and staff.
+3.  **Waiters**: Focused interface for order fulfillment and delivery.
 
 **Tech Stack:**
 *   **Frontend**: React (Vite), TypeScript, Tailwind CSS
-*   **Backend/Database**: Supabase (PostgreSQL)
+*   **Backend/Database**: Supabase (PostgreSQL + Auth)
 *   **Real-time**: Supabase Realtime Channels
 *   **UI Components**: Shadcn/UI, Lucide Icons
 
@@ -16,47 +17,49 @@
 ## 2. Architecture & Database
 
 ### Database Schema (Supabase)
-The system relies on a central `orders` table extended with tracking capabilities.
+The system relies on a relational model linking Users, Profiles, and Orders.
+
+**Table: `profiles`**
+*   `id` (UUID): References `auth.users`.
+*   `role` (TEXT): 'admin' or 'waiter'.
+*   `full_name`: Display name.
 
 **Table: `orders`**
 *   `id` (UUID): Unique identifier.
-*   `order_number` (INT): Sequential number for display (e.g., #105).
-*   `items` (JSONB): Array of ordered items (id, name, quantity, price).
-*   `status` (TEXT): Lifecycle state (pending, confirmed, preparing, ready, delivered, cancelled).
-*   `total_price` (DECIMAL): Total value.
-*   `customer_info`: Name, Email, Phone, Table.
-*   `timestamps`: created_at, updated_at.
+*   `order_number` (INT): Sequential number.
+*   `status` (TEXT): pending -> confirmed -> preparing -> ready -> delivered.
+*   `waiter_id` (UUID): Reference to `profiles` (assigned waiter).
+*   `items` (JSONB): Array of ordered items.
+*   `total_price`, `customer_info`, `timestamps`.
 
-**Table: `order_status_history`**
-*   Audit log tracking every status change, timestamp, and actor.
-
-### Real-Time Synchronization
-*   The app uses **Supabase Subscriptions**.
-*   **Admin Side**: Listens for `INSERT` (new orders), `UPDATE` (status changes), `DELETE`.
-*   **Client Side**: Listens for updates to their specific orders based on ID.
+### Authentication & RBAC
+*   **Supabase Auth**: Handles secure login.
+*   **RBAC (Role-Based Access Control)**:
+    *   **RLS Policies**: Enforce data security at the database level.
+    *   **Frontend Protection**: `ProtectedRoute` component redirects based on Role.
 
 ---
 
 ## 3. Key Components
 
-### A. Order Service (`orderService.ts`)
-The core logic layer handling all database interactions.
-*   `createOrder()`: Generates ID, calculates totals, saves to DB.
-*   `updateOrderStatus()`: Change state (one-way transitions enforced).
-*   `subscribeToOrders()`: Sets up WebSocket connection for live updates.
-*   `getCustomerOrders()`: Fetches history based on User Email/Phone.
+### A. Authentication (`AuthContext.tsx`)
+*   Manages user session.
+*   Automatically fetches User Role (`admin` vs `waiter`) on login.
+*   Provides `isAdmin`, `isWaiter` helpers.
 
-### B. Client Menu
-*   **`OrderCart.tsx`**: The main hub for the user. Contains:
-    *   **Tab System**: Switches between Cart and History.
-    *   **Logic**: Handles local cart state (React Context).
-*   **`OrderStatus.tsx`**: Live tracking component. Reads active orders and displays badges.
-*   **`CustomerInfoDialog.tsx`**: Collects user data and handles WhatsApp + DB submission.
+### B. Admin Platform (`/admin`)
+*   **Layout**: Tabbed interface (Orders, Menu, Staff, Analytics).
+*   **Orders View**: Real-time Kanban/List view of all restaurant orders.
+*   **Capabilities**: Full CRUD on orders, menu management (planned), system configs.
 
-### C. Admin Dashboard
-*   **`AdminDashboard.tsx`**: Protected route.
-*   **Auth**: Session-based simplistic auth (Password: `fortaleza2024`).
-*   **Kanban/List View**: Orders filtered by status tabs.
+### C. Waiter Platform (`/waiter`)
+*   **Queue View**: Available "Confirmed" orders ready for pickup.
+*   **My Orders**: Orders assigned to the logged-in waiter.
+*   **Workflow**: Accept -> Prepare -> Ready -> Deliver.
+
+### D. Client Menu (`/`)
+*   **Public Access**: No login required.
+*   **Features**: Cart, Checkout, Order Tracking (via localStorage or Session).
 
 ---
 
@@ -64,16 +67,15 @@ The core logic layer handling all database interactions.
 
 ### 1. Dual Ordering System
 *   **Database Order**: Primary method. Saved to backend.
-*   **WhatsApp Backup**: Optional parallel message sent to restaurant WhatsApp with order details.
+*   **WhatsApp Backup**: Optional parallel message.
 
-### 2. Order Immutability
-*   Once an order moves past `Pending`, it is locked.
-*   Prevents accidental edits during preparation.
-
-### 3. Smart History & Re-ordering
-*   **Persistence**: User details (Email/Phone) stored in `localStorage`.
-*   **History**: Retrieves all past delivered/cancelled orders associated with user.
-*   **Re-order**: "Repetir Pedido" logic looks up original item IDs in current `menuData` to ensure price/availability validity before adding to cart.
+### 2. Order Lifecycle with Accountability
+*   **Pending**: Customer placed order.
+*   **Confirmed**: Admin acknowledged.
+*   **Preparing**: Waiter/Kitchen started work (Waiter Assigned).
+*   **Ready**: Food is ready for pickup/delivery.
+*   **Delivered**: Handed to customer (Final State).
+*   *Timestamps tracked for every stage*.
 
 ---
 
@@ -83,17 +85,9 @@ The core logic layer handling all database interactions.
 *   `VITE_SUPABASE_URL`: Project URL.
 *   `VITE_SUPABASE_ANON_KEY`: Public API Key.
 
-### Routing (Netlify)
-*   Configured via `netlify.toml` to handle React Router (Client-side routing).
-*   Redirects `/*` to `/index.html`.
-
-### Security
-*   **RLS (Row Level Security)**:
-    *   Currently configured for development (Public Read/Write).
-    *   *Recommendation*: Lock down for production using Supabase Auth policies.
-*   **Admin Access**:
-    *   Frontend password gate.
-    *   Redirects `/admin` to `/admin-login` if no session exists.
+### Routing
+*   **React Router**: Client-side routing.
+*   **Protected Routes**: Wrappers check `AuthContext` before rendering Admin/Waiter pages.
 
 ---
 
@@ -101,11 +95,12 @@ The core logic layer handling all database interactions.
 ```
 src/
 ├── components/
-│   ├── menu/          # Client facing components (Cart, ProductCard)
-│   ├── ui/            # Reusable UI elements (Buttons, Tabs)
-├── contexts/          # State management (OrderContext)
-├── data/              # Static menu data (menuData.ts)
-├── lib/               # Utilities (Supabase client, utils)
-├── pages/             # Route pages (Index, Admin, Login)
-└── services/          # Business logic (OrderService)
+│   ├── admin/         # Admin specific (AdminOrdersView)
+│   ├── auth/          # ProtectedRoute
+│   ├── menu/          # Client facing components
+│   ├── ui/            # Shadcn UI
+├── contexts/          # AuthContext, OrderContext
+├── pages/             # Login, AdminDashboard, WaiterDashboard
+├── services/          # OrderService
+└── lib/               # Supabase client
 ```
