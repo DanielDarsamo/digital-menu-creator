@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Order, OrderService } from "@/services/orderService";
@@ -10,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { LogOut, Bell, CheckCircle2, ChefHat, Package, Clock, MapPin, User, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import TableView from "@/components/waiter/TableView";
 
 const formatPrice = (price: number) => {
     return new Intl.NumberFormat("pt-MZ").format(price) + " MT";
@@ -163,9 +163,12 @@ const WaiterDashboard = () => {
             </header>
 
             {/* Content */}
-            <main className="flex-1 container mx-auto px-4 py-4 max-w-3xl">
-                <Tabs defaultValue="my-orders" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-2 h-12">
+            <main className="flex-1 container mx-auto px-4 py-4 max-w-5xl">
+                <Tabs defaultValue="tables" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-3 h-12">
+                        <TabsTrigger value="tables" className="text-base">
+                            Tables
+                        </TabsTrigger>
                         <TabsTrigger value="my-orders" className="text-base">
                             My Orders
                             {myOrders.length > 0 && (
@@ -175,7 +178,7 @@ const WaiterDashboard = () => {
                             )}
                         </TabsTrigger>
                         <TabsTrigger value="available" className="text-base">
-                            Kitchen Queue
+                            Queue
                             {availableOrders.length > 0 && (
                                 <Badge variant="secondary" className="ml-2 bg-yellow-500 text-white">
                                     {availableOrders.length}
@@ -183,6 +186,10 @@ const WaiterDashboard = () => {
                             )}
                         </TabsTrigger>
                     </TabsList>
+
+                    <TabsContent value="tables">
+                        <TableView />
+                    </TabsContent>
 
                     <TabsContent value="my-orders" className="space-y-4">
                         {myOrders.length === 0 ? (

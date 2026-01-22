@@ -134,26 +134,33 @@ export class OrderService {
         totalPrice: number,
         customerInfo?: Order['customerInfo'],
         sentViaWhatsApp: boolean = false,
-        sentToAdmin: boolean = false
+        sentToAdmin: boolean = false,
+        customerSessionId?: string // New optional param
     ): Promise<Order | null> {
         try {
             const orderNumber = await this.getNextOrderNumber();
 
+            const payload: any = {
+                order_number: orderNumber,
+                items: items,
+                total_price: totalPrice,
+                customer_name: customerInfo?.name || null,
+                customer_email: customerInfo?.email || null,
+                customer_phone: customerInfo?.phone || null,
+                customer_table: customerInfo?.table || null,
+                customer_notes: customerInfo?.notes || null,
+                status: 'pending',
+                sent_via_whatsapp: sentViaWhatsApp,
+                sent_to_admin: sentToAdmin,
+            };
+
+            if (customerSessionId) {
+                payload.customer_session_id = customerSessionId;
+            }
+
             const { data, error } = await supabase
                 .from('orders')
-                .insert({
-                    order_number: orderNumber,
-                    items: items,
-                    total_price: totalPrice,
-                    customer_name: customerInfo?.name || null,
-                    customer_email: customerInfo?.email || null,
-                    customer_phone: customerInfo?.phone || null,
-                    customer_table: customerInfo?.table || null,
-                    customer_notes: customerInfo?.notes || null,
-                    status: 'pending',
-                    sent_via_whatsapp: sentViaWhatsApp,
-                    sent_to_admin: sentToAdmin,
-                })
+                .insert(payload)
                 .select()
                 .single();
 
@@ -333,4 +340,48 @@ export class OrderService {
     static unsubscribeFromOrders(subscription: any) {
         supabase.removeChannel(subscription);
     }
+
+    // Session-related methods
+    static async getActiveSessionsByTable(): Promise<Map<string, any[]>> {
+        try {
+            const { data, error } = await supabase
+                .from('customer_sessions')
+                .select(`
+                    *,
+                    orders:orders(id, total_price, status, created_at)
+                `)
+                .eq('status', 'active')
+                .order('table_id', { ascending: true });
+
+            if (error) throw error;
+
+            // Group by table
+            const tableMap = new Map<string, any[]>();
+            data?.forEach((session: any) => {
+                const tableId = session.table_id;
+                if (!tableMap.has(tableId)) {
+                    tableMap.set(tableId, []);
+                }
+
+                // Calculate unpaid total for this session
+                const unpaidTotal = session.orders
+                    ?.filter((o: any) => o.status !== 'cancelled' && o.status !== 'delivered')
+                    .reduce((sum: number, o: any) => sum + parseFloat(o.total_price), 0) || 0;
+
+                tableMap.get(tableId)!.push({
+                    id: session.id,
+                    name: session.customer_name,
+                    phone: session.phone_number,
+                    unpaidTotal,
+                    orderCount: session.orders?.length || 0,
+                });
+            });
+
+            return tableMap;
+        } catch (error) {
+            console.error('Failed to fetch sessions by table:', error);
+            return new Map();
+        }
+    }
 }
+

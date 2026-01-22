@@ -97,5 +97,43 @@ COMMENT ON TABLE orders IS 'Stores all customer orders for Fortaleza de Sabores 
 COMMENT ON COLUMN orders.order_number IS 'Sequential order number for easy reference';
 COMMENT ON COLUMN orders.items IS 'JSON array of order items with id, name, quantity, price, category';
 COMMENT ON COLUMN orders.status IS 'Current status of the order in the workflow';
-COMMENT ON COLUMN orders.sent_via_whatsapp IS 'Whether the order was sent via WhatsApp';
 COMMENT ON COLUMN orders.sent_to_admin IS 'Whether the order was sent to the admin system';
+
+-- ==========================================
+-- NEW ADDITIONS FOR MVP ALIGNMENT
+-- ==========================================
+
+-- Customer Sessions
+CREATE TABLE IF NOT EXISTS customer_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_name TEXT NOT NULL,
+  phone_number TEXT NOT NULL,
+  table_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_sessions_table ON customer_sessions(table_id);
+CREATE INDEX IF NOT EXISTS idx_customer_sessions_status ON customer_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_customer_sessions_phone ON customer_sessions(phone_number);
+
+-- Payments
+CREATE TABLE IF NOT EXISTS payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_session_id UUID REFERENCES customer_sessions(id) NOT NULL,
+  order_id UUID REFERENCES orders(id),
+  amount DECIMAL(10, 2) NOT NULL,
+  payment_method TEXT NOT NULL CHECK (payment_method IN ('cash', 'card', 'mpesa')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  confirmed_at TIMESTAMPTZ
+);
+
+ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
+
+-- Link Orders to Session
+ALTER TABLE orders 
+ADD COLUMN IF NOT EXISTS customer_session_id UUID REFERENCES customer_sessions(id);
+
+CREATE INDEX IF NOT EXISTS idx_orders_session ON orders(customer_session_id);

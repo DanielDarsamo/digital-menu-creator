@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OrderStatus from "@/components/menu/OrderStatus";
 import OrderHistory from "@/components/menu/OrderHistory";
+import { useSession } from "@/contexts/SessionContext";
 
 interface OrderCartProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ const formatPrice = (price: number) => {
 
 const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
   const { items, totalItems, totalPrice, updateQuantity, removeItem, clearCart } = useOrder();
+  const { session } = useSession();
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -75,8 +77,10 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
           notes: customerInfo.notes,
         },
         customerInfo.sendToWhatsApp,
-        customerInfo.sendToAdmin
+        customerInfo.sendToAdmin,
+        session?.id // Pass session ID
       );
+
 
       if (!order) {
         toast.error("Erro ao criar pedido", {
@@ -293,6 +297,7 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
           isOpen={isCustomerDialogOpen}
           onClose={() => setIsCustomerDialogOpen(false)}
           onSubmit={handleCustomerInfoSubmit}
+          session={session}
         />
       </SheetContent>
     </Sheet>

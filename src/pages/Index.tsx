@@ -86,11 +86,17 @@ const IndexContent = () => {
   );
 };
 
+import { SessionProvider } from "@/contexts/SessionContext";
+import EntryDialog from "@/components/menu/EntryDialog";
+
 const Index = () => {
   return (
-    <OrderProvider>
-      <IndexContent />
-    </OrderProvider>
+    <SessionProvider>
+      <OrderProvider>
+        <IndexContent />
+        <EntryDialog />
+      </OrderProvider>
+    </SessionProvider>
   );
 };
 

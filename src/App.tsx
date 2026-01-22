@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import WaiterDashboard from "./pages/WaiterDashboard";
+import KitchenDashboard from "./pages/KitchenDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,16 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['waiter']}>
                   <WaiterDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Protected Kitchen Routes */}
+            <Route
+              path="/kitchen/*"
+              element={
+                <ProtectedRoute allowedRoles={['waiter', 'admin']}>
+                  <KitchenDashboard />
                 </ProtectedRoute>
               }
             />
