@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import WaiterDashboard from "./pages/WaiterDashboard";
 import KitchenDashboard from "./pages/KitchenDashboard";
+import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
 
             {/* Legacy redirect or handle old admin-login */}
             <Route path="/admin-login" element={<Login />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -52,6 +52,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (session?.user) {
                 // Only fetch if role isn't already set or user changed
+                setRole(null); // Clear previous role to avoid conflation
                 fetchUserRole(session.user.id);
             } else {
                 setRole(null);

@@ -26,12 +26,8 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
 
     if (allowedRoles && role && !allowedRoles.includes(role)) {
         // User is signed in but doesn't have the required role
-        // Redirect to their appropriate dashboard
-        if (role === 'admin') return <Navigate to="/admin" replace />;
-        if (role === 'waiter') return <Navigate to="/waiter" replace />;
-
-        // Fallback
-        return <Navigate to="/" replace />;
+        // Redirect to unauthorized page
+        return <Navigate to="/unauthorized" replace />;
     }
 
     return <>{children}</>;
