@@ -67,12 +67,37 @@ export class OrderService {
         };
     }
 
-    static async getAllOrders(): Promise<Order[]> {
+    static async getAllOrders(options?: {
+        status?: Order['status'] | Order['status'][];
+        limit?: number;
+        page?: number;
+    }): Promise<Order[]> {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('orders')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .select('*', { count: 'exact' });
+
+            if (options?.status) {
+                if (Array.isArray(options.status)) {
+                    query = query.in('status', options.status);
+                } else {
+                    query = query.eq('status', options.status);
+                }
+            }
+
+            // Pagination
+            if (options?.limit) {
+                const limit = options.limit;
+                const page = options.page || 1;
+                const from = (page - 1) * limit;
+                const to = from + limit - 1;
+                query = query.range(from, to);
+            }
+
+            // Default sorting
+            query = query.order('created_at', { ascending: false });
+
+            const { data, error } = await query;
 
             if (error) {
                 console.error('Error fetching orders:', error);
@@ -83,6 +108,28 @@ export class OrderService {
         } catch (error) {
             console.error('Failed to fetch orders:', error);
             return [];
+        }
+    }
+
+    static async getOrderStats() {
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('status, created_at');
+
+            if (error) throw error;
+
+            const total = data.length;
+            const pending = data.filter(o => o.status === 'pending').length;
+            const preparing = data.filter(o => o.status === 'preparing').length;
+
+            const today = new Date().toDateString();
+            const todayCount = data.filter(o => new Date(o.created_at).toDateString() === today).length;
+
+            return { total, pending, preparing, todayCount };
+        } catch (error) {
+            console.error('Failed to fetch stats:', error);
+            return { total: 0, pending: 0, preparing: 0, todayCount: 0 };
         }
     }
 

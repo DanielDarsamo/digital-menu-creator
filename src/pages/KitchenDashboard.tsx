@@ -21,10 +21,9 @@ const KitchenDashboard = () => {
     const loadOrders = async () => {
         setLoading(true);
         // Get orders that are confirmed or preparing (kitchen's responsibility)
-        const allOrders = await OrderService.getAllOrders();
-        const kitchenOrders = allOrders.filter(
-            (o) => o.status === 'confirmed' || o.status === 'preparing'
-        );
+        const kitchenOrders = await OrderService.getAllOrders({
+            status: ['confirmed', 'preparing']
+        });
         setOrders(kitchenOrders);
         setLoading(false);
     };

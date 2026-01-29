@@ -24,7 +24,7 @@ export const menuCategories: MenuCategory[] = [
     name: "Entradas",
     icon: "🥗",
     items: [
-      { id: "e1", name: "Bruscheta Mista", description: "Tomate, pesto de manjericão e alho", price: 490, category: "entradas", image: "https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=600&h=400&fit=crop" },
+      { id: "e1", name: "Bruscheta Mista", description: "Tomate, pesto de manjericão e alho", price: 490, category: "entradas", isVegetarian: true, image: "https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=600&h=400&fit=crop" },
       { id: "e2", name: "Carpaccio de Carne", description: "Com rúcula, alcaparras e parmesão", price: 750, category: "entradas", image: "https://images.unsplash.com/photo-1608897013039-887f21d8c804?w=600&h=400&fit=crop" },
       { id: "e3", name: "Salada Caesar", description: "Alface romana, croutons, parmesão e molho caesar", price: 520, category: "entradas", image: "https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=600&h=400&fit=crop" },
       { id: "e4", name: "Sopa do Dia", description: "Consulte o nosso staff", price: 380, category: "entradas", image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=600&h=400&fit=crop" },
@@ -48,12 +48,12 @@ export const menuCategories: MenuCategory[] = [
     name: "Petiscos",
     icon: "🍟",
     items: [
-      { id: "p1", name: "Batatas Fritas", description: "Porção generosa com sal e ervas", price: 280, category: "petiscos", image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&h=400&fit=crop" },
-      { id: "p2", name: "Onion Rings", description: "Anéis de cebola empanados e crocantes", price: 320, category: "petiscos", image: "https://images.unsplash.com/photo-1639024471283-03518883512d?w=600&h=400&fit=crop" },
+      { id: "p1", name: "Batatas Fritas", description: "Porção generosa com sal e ervas", price: 280, category: "petiscos", isVegetarian: true, isKidsFriendly: true, image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=600&h=400&fit=crop" },
+      { id: "p2", name: "Onion Rings", description: "Anéis de cebola empanados e crocantes", price: 320, category: "petiscos", isVegetarian: true, image: "https://images.unsplash.com/photo-1639024471283-03518883512d?w=600&h=400&fit=crop" },
       { id: "p3", name: "Chicken Wings", description: "Asinhas de frango com molho à escolha", price: 490, category: "petiscos", image: "https://images.unsplash.com/photo-1608039829572-25e8182a7554?w=600&h=400&fit=crop" },
-      { id: "p4", name: "Nachos Completos", description: "Com guacamole, sour cream, jalapeños e queijo derretido", price: 520, category: "petiscos", image: "https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=600&h=400&fit=crop" },
+      { id: "p4", name: "Nachos Completos", description: "Com guacamole, sour cream, jalapeños e queijo derretido", price: 520, category: "petiscos", isVegetarian: true, image: "https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=600&h=400&fit=crop" },
       { id: "p5", name: "Calamares Fritos", description: "Lulas empanadas com molho tártaro", price: 580, category: "petiscos", isSeafood: true, image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=600&h=400&fit=crop" },
-      { id: "p6", name: "Tábua de Queijos", description: "Seleção de queijos artesanais com mel e nozes", price: 720, category: "petiscos", image: "https://images.unsplash.com/photo-1452195100486-9cc805987862?w=600&h=400&fit=crop" },
+      { id: "p6", name: "Tábua de Queijos", description: "Seleção de queijos artesanais com mel e nozes", price: 720, category: "petiscos", isVegetarian: true, image: "https://images.unsplash.com/photo-1452195100486-9cc805987862?w=600&h=400&fit=crop" },
     ]
   },
   {
@@ -137,12 +137,12 @@ export const menuCategories: MenuCategory[] = [
     name: "Sobremesas",
     icon: "🍰",
     items: [
-      { id: "sb1", name: "Cheesecake", description: "Com calda de frutas vermelhas", price: 380, category: "sobremesas", image: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=600&h=400&fit=crop" },
-      { id: "sb2", name: "Brownie com Gelado", description: "Brownie quente com gelado de baunilha", price: 420, category: "sobremesas", image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&h=400&fit=crop" },
-      { id: "sb3", name: "Pudim de Leite", description: "Tradicional português com caramelo", price: 320, category: "sobremesas", image: "https://images.unsplash.com/photo-1528975604071-b4dc52a2d18c?w=600&h=400&fit=crop" },
-      { id: "sb4", name: "Mousse de Chocolate", description: "Intenso chocolate belga", price: 350, category: "sobremesas", image: "https://images.unsplash.com/photo-1541783245831-57d6fb0926d3?w=600&h=400&fit=crop" },
-      { id: "sb5", name: "Tiramisu", description: "Clássico italiano com café e mascarpone", price: 420, category: "sobremesas", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&h=400&fit=crop" },
-      { id: "sb6", name: "Gelado (3 bolas)", description: "Sabores à escolha", price: 280, category: "sobremesas", image: "https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=600&h=400&fit=crop" },
+      { id: "sb1", name: "Cheesecake", description: "Com calda de frutas vermelhas", price: 380, category: "sobremesas", isVegetarian: true, image: "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=600&h=400&fit=crop" },
+      { id: "sb2", name: "Brownie com Gelado", description: "Brownie quente com gelado de baunilha", price: 420, category: "sobremesas", isVegetarian: true, image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&h=400&fit=crop" },
+      { id: "sb3", name: "Pudim de Leite", description: "Tradicional português com caramelo", price: 320, category: "sobremesas", isVegetarian: true, image: "https://images.unsplash.com/photo-1528975604071-b4dc52a2d18c?w=600&h=400&fit=crop" },
+      { id: "sb4", name: "Mousse de Chocolate", description: "Intenso chocolate belga", price: 350, category: "sobremesas", isVegetarian: true, image: "https://images.unsplash.com/photo-1541783245831-57d6fb0926d3?w=600&h=400&fit=crop" },
+      { id: "sb5", name: "Tiramisu", description: "Clássico italiano com café e mascarpone", price: 420, category: "sobremesas", isVegetarian: true, image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=600&h=400&fit=crop" },
+      { id: "sb6", name: "Gelado (3 bolas)", description: "Sabores à escolha", price: 280, category: "sobremesas", isVegetarian: true, isKidsFriendly: true, image: "https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=600&h=400&fit=crop" },
     ]
   },
   {
@@ -162,16 +162,16 @@ export const menuCategories: MenuCategory[] = [
     name: "Bebidas",
     icon: "🥤",
     items: [
-      { id: "b1", name: "Água Mineral", description: "500ml", price: 80, category: "bebidas", subcategory: "Águas", image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=600&h=400&fit=crop" },
-      { id: "b2", name: "Água com Gás", description: "500ml", price: 90, category: "bebidas", subcategory: "Águas", image: "https://images.unsplash.com/photo-1606168094336-48f205276929?w=600&h=400&fit=crop" },
-      { id: "b3", name: "Refrigerante", description: "Coca-Cola, Fanta, Sprite", price: 120, category: "bebidas", subcategory: "Refrigerantes", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&h=400&fit=crop" },
-      { id: "b4", name: "Sumo Natural", description: "Laranja, Maracujá, Manga", price: 180, category: "bebidas", subcategory: "Sumos", image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=400&fit=crop" },
-      { id: "b5", name: "Limonada Fresca", description: "Com hortelã", price: 150, category: "bebidas", subcategory: "Sumos", image: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=600&h=400&fit=crop" },
-      { id: "b6", name: "Café Expresso", description: "Intenso e aromático", price: 80, category: "bebidas", subcategory: "Bebidas Quentes", image: "https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=600&h=400&fit=crop" },
-      { id: "b7", name: "Cappuccino", description: "Com espuma de leite", price: 150, category: "bebidas", subcategory: "Bebidas Quentes", image: "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&h=400&fit=crop" },
-      { id: "b8", name: "Chá", description: "Variedades disponíveis", price: 100, category: "bebidas", subcategory: "Bebidas Quentes", image: "https://images.unsplash.com/photo-1597318181409-cf64d0b5d8a2?w=600&h=400&fit=crop" },
-      { id: "b9", name: "Cerveja Nacional", description: "2M, Laurentina, Manica", price: 120, category: "bebidas", subcategory: "Cervejas", image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=600&h=400&fit=crop" },
-      { id: "b10", name: "Cerveja Importada", description: "Heineken, Corona, Stella", price: 180, category: "bebidas", subcategory: "Cervejas", image: "https://images.unsplash.com/photo-1618885472179-5e474019f2a9?w=600&h=400&fit=crop" },
+      { id: "b1", name: "Água Mineral", description: "500ml", price: 80, category: "bebidas", subcategory: "Águas", isVegetarian: true, isKidsFriendly: true, image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=600&h=400&fit=crop" },
+      { id: "b2", name: "Água com Gás", description: "500ml", price: 90, category: "bebidas", subcategory: "Águas", isVegetarian: true, image: "https://images.unsplash.com/photo-1606168094336-48f205276929?w=600&h=400&fit=crop" },
+      { id: "b3", name: "Refrigerante", description: "Coca-Cola, Fanta, Sprite", price: 120, category: "bebidas", subcategory: "Refrigerantes", isVegetarian: true, isKidsFriendly: true, image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=600&h=400&fit=crop" },
+      { id: "b4", name: "Sumo Natural", description: "Laranja, Maracujá, Manga", price: 180, category: "bebidas", subcategory: "Sumos", isVegetarian: true, isKidsFriendly: true, image: "https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=400&fit=crop" },
+      { id: "b5", name: "Limonada Fresca", description: "Com hortelã", price: 150, category: "bebidas", subcategory: "Sumos", isVegetarian: true, isKidsFriendly: true, image: "https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=600&h=400&fit=crop" },
+      { id: "b6", name: "Café Expresso", description: "Intenso e aromático", price: 80, category: "bebidas", subcategory: "Bebidas Quentes", isVegetarian: true, image: "https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=600&h=400&fit=crop" },
+      { id: "b7", name: "Cappuccino", description: "Com espuma de leite", price: 150, category: "bebidas", subcategory: "Bebidas Quentes", isVegetarian: true, image: "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=600&h=400&fit=crop" },
+      { id: "b8", name: "Chá", description: "Variedades disponíveis", price: 100, category: "bebidas", subcategory: "Bebidas Quentes", isVegetarian: true, image: "https://images.unsplash.com/photo-1597318181409-cf64d0b5d8a2?w=600&h=400&fit=crop" },
+      { id: "b9", name: "Cerveja Nacional", description: "2M, Laurentina, Manica", price: 120, category: "bebidas", subcategory: "Cervejas", isVegetarian: true, image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=600&h=400&fit=crop" },
+      { id: "b10", name: "Cerveja Importada", description: "Heineken, Corona, Stella", price: 180, category: "bebidas", subcategory: "Cervejas", isVegetarian: true, image: "https://images.unsplash.com/photo-1618885472179-5e474019f2a9?w=600&h=400&fit=crop" },
     ]
   },
   {
