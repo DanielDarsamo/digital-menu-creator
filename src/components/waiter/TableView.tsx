@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { OrderService } from "@/services/orderService";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Users, DollarSign } from "lucide-react";
@@ -10,12 +11,13 @@ const formatPrice = (price: number) => {
 };
 
 const TableView = () => {
+    const { supabase } = useAuth();
     const [tableData, setTableData] = useState<Map<string, any[]>>(new Map());
     const [loading, setLoading] = useState(true);
 
     const loadTables = async () => {
         setLoading(true);
-        const data = await OrderService.getActiveSessionsByTable();
+        const data = await OrderService.getActiveSessionsByTable(supabase);
         setTableData(data);
         setLoading(false);
     };

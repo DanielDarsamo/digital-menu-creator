@@ -1,5 +1,6 @@
 
 import { supabase } from '@/lib/supabase';
+import { SupabaseClient } from "@supabase/supabase-js";
 
 export interface Order {
     id: string;
@@ -71,9 +72,9 @@ export class OrderService {
         status?: Order['status'] | Order['status'][];
         limit?: number;
         page?: number;
-    }): Promise<Order[]> {
+    }, client: SupabaseClient = supabase): Promise<Order[]> {
         try {
-            let query = supabase
+            let query = client
                 .from('orders')
                 .select('*', { count: 'exact' });
 
@@ -111,9 +112,9 @@ export class OrderService {
         }
     }
 
-    static async getOrderStats() {
+    static async getOrderStats(client: SupabaseClient = supabase) {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .select('status, created_at');
 
@@ -133,9 +134,9 @@ export class OrderService {
         }
     }
 
-    static async getOrderById(id: string): Promise<Order | null> {
+    static async getOrderById(id: string, client: SupabaseClient = supabase): Promise<Order | null> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .select('*')
                 .eq('id', id)
@@ -153,14 +154,14 @@ export class OrderService {
         }
     }
 
-    static async getNextOrderNumber(): Promise<number> {
+    static async getNextOrderNumber(client: SupabaseClient = supabase): Promise<number> {
         try {
-            const { data, error } = await supabase.rpc('get_next_order_number');
+            const { data, error } = await client.rpc('get_next_order_number');
 
             if (error) {
                 console.error('Error getting next order number:', error);
                 // Fallback: get max order number and add 1
-                const { data: orders } = await supabase
+                const { data: orders } = await client
                     .from('orders')
                     .select('order_number')
                     .order('order_number', { ascending: false })
@@ -182,10 +183,11 @@ export class OrderService {
         customerInfo?: Order['customerInfo'],
         sentViaWhatsApp: boolean = false,
         sentToAdmin: boolean = false,
-        customerSessionId?: string // New optional param
+        customerSessionId?: string, // New optional param
+        client: SupabaseClient = supabase
     ): Promise<Order | null> {
         try {
-            const orderNumber = await this.getNextOrderNumber();
+            const orderNumber = await this.getNextOrderNumber(client);
 
             const payload: any = {
                 order_number: orderNumber,
@@ -205,7 +207,7 @@ export class OrderService {
                 payload.customer_session_id = customerSessionId;
             }
 
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .insert(payload)
                 .select()
@@ -229,16 +231,49 @@ export class OrderService {
         }
     }
 
-    static async updateOrderStatus(orderId: string, status: Order['status']): Promise<Order | null> {
+    static async updateOrderStatus(
+        orderId: string,
+        status: Order['status'],
+        client: SupabaseClient = supabase
+    ): Promise<Order | null> {
         try {
-            const updatePayload: any = { status };
+            // Audit logic: Fetch current user and order status
+            const { data: { user } } = await client.auth.getUser();
+            const { data: currentOrder } = await client
+                .from('orders')
+                .select('status, status_history')
+                .eq('id', orderId)
+                .single();
+
+            const oldStatus = currentOrder?.status || null;
+            const history = currentOrder?.status_history || [];
+
+            // Skip update if status hasn't changed (optional optimization, but strict audit might record attempts? Let's skip duplicate)
+            if (oldStatus === status) {
+                // But maybe we want to log re-confirmations? Usually no.
+                return this.getOrderById(orderId, client);
+            }
+
+            const newHistoryItem = {
+                oldStatus,
+                newStatus: status,
+                changedAt: new Date().toISOString(),
+                changedBy: user?.id || 'unknown' // or user email if profile available
+            };
+
+            const updatedHistory = [...history, newHistoryItem];
+
+            const updatePayload: any = {
+                status,
+                status_history: updatedHistory
+            };
 
             // Auto-update timestamps based on status
             if (status === 'delivered') {
                 updatePayload.delivered_at = new Date().toISOString();
             }
 
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .update(updatePayload)
                 .eq('id', orderId)
@@ -263,16 +298,14 @@ export class OrderService {
         }
     }
 
-    static async assignWaiter(orderId: string, waiterId: string): Promise<Order | null> {
+    static async assignWaiter(orderId: string, waiterId: string, client: SupabaseClient = supabase): Promise<Order | null> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .update({
                     waiter_id: waiterId,
                     accepted_at: new Date().toISOString(),
-                    status: 'preparing' // Usually implies acceptance starts prep, or remains confirmed? Spec says "Accept -> In Preparation" is a manual step, but usually accepting means taking responsibility. Let's kept status as is or update it? Spec: "Waiters... Accept an order (assigns waiter)... Once accepted, they can Mark as In Preparation". So Accept is just assignment.
-                    // Actually, if a waiter accepts, it's assigned. Status might stay 'confirmed' until they click 'In Prep', or move to 'preparing' automatically.
-                    // Let's just assign waiter for now.
+                    // status: 'preparing' // See note in original code
                 })
                 .eq('id', orderId)
                 .select()
@@ -286,12 +319,12 @@ export class OrderService {
         }
     }
 
-    static async getAvailableOrders(): Promise<Order[]> {
+    static async getAvailableOrders(client: SupabaseClient = supabase): Promise<Order[]> {
         // Orders that are confirmed but not yet assigned (or just confirmed)
         // Adjust logic based on exact requirements. 
         // "View new incoming orders" -> Usually 'confirmed' state.
         try {
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .select('*')
                 .eq('status', 'confirmed')
@@ -306,9 +339,9 @@ export class OrderService {
         }
     }
 
-    static async getWaiterOrders(waiterId: string): Promise<Order[]> {
+    static async getWaiterOrders(waiterId: string, client: SupabaseClient = supabase): Promise<Order[]> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('orders')
                 .select('*')
                 .eq('waiter_id', waiterId)
@@ -323,9 +356,9 @@ export class OrderService {
         }
     }
 
-    static async deleteOrder(orderId: string): Promise<boolean> {
+    static async deleteOrder(orderId: string, client: SupabaseClient = supabase): Promise<boolean> {
         try {
-            const { error } = await supabase
+            const { error } = await client
                 .from('orders')
                 .delete()
                 .eq('id', orderId);
@@ -343,8 +376,8 @@ export class OrderService {
         }
     }
 
-    static subscribeToOrders(callback: (payload: any) => void) {
-        const subscription = supabase
+    static subscribeToOrders(callback: (payload: any) => void, client: SupabaseClient = supabase) {
+        const subscription = client
             .channel('orders-channel')
             .on(
                 'postgres_changes',
@@ -384,14 +417,14 @@ export class OrderService {
         }
     }
 
-    static unsubscribeFromOrders(subscription: any) {
-        supabase.removeChannel(subscription);
+    static unsubscribeFromOrders(subscription: any, client: SupabaseClient = supabase) {
+        client.removeChannel(subscription);
     }
 
     // Session-related methods
-    static async getActiveSessionsByTable(): Promise<Map<string, any[]>> {
+    static async getActiveSessionsByTable(client: SupabaseClient = supabase): Promise<Map<string, any[]>> {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('customer_sessions')
                 .select(`
                     *,

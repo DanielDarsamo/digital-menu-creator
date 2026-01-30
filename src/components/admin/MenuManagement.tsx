@@ -57,9 +57,12 @@ const MenuManagement = () => {
         // Wait, `getFullMenu` returns nested structure.
 
         try {
-            const data = await MenuService.getFullMenu(supabase);
+            const [data, cats] = await Promise.all([
+                MenuService.getFullMenu(supabase),
+                MenuService.getCategories(supabase)
+            ]);
+            setCategories(cats);
             // We need to flatten or structure this for the table.
-            // Also we need raw categories for the dropdown.
             // Let's assume we can fetch categories separately or parse them from result.
             // Ideally validation fetches categories.
 
@@ -96,11 +99,36 @@ const MenuManagement = () => {
             name: item.name,
             description: item.description,
             price: item.price,
-            category_id: item.category, // Map correctly
-            is_available: true // Default
+            category_id: item.category, // Map correctly - ensure this matches category ID
+            is_available: true, // Default
+            image_url: item.image
         });
         setIsDialogOpen(true);
     }
+
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        // Allow digits and one decimal point
+        if (value === '' || /^\d*\.?\d*$/.test(value)) {
+            setFormData({ ...formData, price: value === '' ? 0 : parseFloat(value) });
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const toastId = toast.loading("Uploading image...");
+            const url = await MenuService.uploadImage(file, supabase);
+            setFormData({ ...formData, image_url: url });
+            toast.dismiss(toastId);
+            toast.success("Image uploaded!");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to upload image");
+        }
+    };
 
     if (loading) return <div>Loading menu...</div>;
 
@@ -195,10 +223,53 @@ const MenuManagement = () => {
                             <Textarea value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Price (MT)</Label>
-                            <Input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} />
+                            <Label>Category</Label>
+                            <Select
+                                value={formData.category_id}
+                                onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categories.map((cat) => (
+                                        <SelectItem key={cat.id} value={cat.id}>
+                                            <span className="flex items-center gap-2">
+                                                <span>{cat.icon}</span> {cat.name}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        {/* More fields (Category, Tags, Image) to be added */}
+                        <div className="grid gap-2">
+                            <Label>Price (MT)</Label>
+                            <Input
+                                type="text"
+                                inputMode="decimal"
+                                value={formData.price === 0 ? '' : formData.price}
+                                onChange={handlePriceChange}
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Image</Label>
+                            <div className="flex items-center gap-4">
+                                {formData.image_url && (
+                                    <img src={formData.image_url} alt="Preview" className="w-16 h-16 object-cover rounded-md" />
+                                )}
+                                <div className="flex-1">
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                    />
+                                    <span className="text-xs text-muted-foreground mt-1 block">
+                                        Upload a new image to replace the current one.
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>

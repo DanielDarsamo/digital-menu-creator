@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Order, OrderService } from "@/services/orderService";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -199,6 +200,7 @@ const OrderCard = ({ order, onStatusChange, onDelete }: {
 
 // --- Main Component ---
 const AdminOrdersView = () => {
+    const { supabase } = useAuth();
     const [orders, setOrders] = useState<Order[]>([]);
     const [activeTab, setActiveTab] = useState<"all" | Order['status']>("all");
     const [isLoading, setIsLoading] = useState(true);
@@ -214,7 +216,7 @@ const AdminOrdersView = () => {
         setIsLoading(true);
         try {
             // Fetch stats
-            const fetchedStats = await OrderService.getOrderStats();
+            const fetchedStats = await OrderService.getOrderStats(supabase);
             setStats(fetchedStats);
 
             // Fetch Paginated Orders
@@ -223,7 +225,7 @@ const AdminOrdersView = () => {
                 options.status = activeTab;
             }
 
-            const fetchedOrders = await OrderService.getAllOrders(options);
+            const fetchedOrders = await OrderService.getAllOrders(options, supabase);
             setOrders(fetchedOrders);
         } catch (error) {
             toast.error("Failed to load data");
@@ -247,12 +249,12 @@ const AdminOrdersView = () => {
         const subscription = OrderService.subscribeToOrders((payload) => {
             console.log('Real-time update:', payload);
             loadData();
-        });
-        return () => OrderService.unsubscribeFromOrders(subscription);
+        }, supabase);
+        return () => OrderService.unsubscribeFromOrders(subscription, supabase);
     }, []);
 
     const handleStatusChange = async (orderId: string, status: Order['status']) => {
-        const updated = await OrderService.updateOrderStatus(orderId, status);
+        const updated = await OrderService.updateOrderStatus(orderId, status, supabase);
         if (updated) {
             toast.success(`Order marked as ${statusConfig[status].label.toLowerCase()}`);
             loadData();
@@ -263,7 +265,7 @@ const AdminOrdersView = () => {
 
     const handleDelete = async (orderId: string) => {
         if (confirm("Are you sure you want to delete this order?")) {
-            const deleted = await OrderService.deleteOrder(orderId);
+            const deleted = await OrderService.deleteOrder(orderId, supabase);
             if (deleted) {
                 toast.success("Order deleted");
                 loadData();

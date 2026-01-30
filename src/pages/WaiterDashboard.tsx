@@ -89,7 +89,7 @@ const WaiterOrderCard = ({
 };
 
 const WaiterDashboard = () => {
-    const { user, signOut } = useAuth();
+    const { user, signOut, supabase } = useAuth();
     const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
     const [myOrders, setMyOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
@@ -97,8 +97,8 @@ const WaiterDashboard = () => {
     const loadData = async () => {
         if (!user) return;
         setLoading(true);
-        const available = await OrderService.getAvailableOrders();
-        const mine = await OrderService.getWaiterOrders(user.id);
+        const available = await OrderService.getAvailableOrders(supabase);
+        const mine = await OrderService.getWaiterOrders(user.id, supabase);
         setAvailableOrders(available);
         setMyOrders(mine);
         setLoading(false);
@@ -111,16 +111,16 @@ const WaiterDashboard = () => {
             // Simple approach: reload all on any change
             // Ideally we check payload, but for small scale this is robust entough
             loadData();
-        });
+        }, supabase);
 
         return () => {
-            OrderService.unsubscribeFromOrders(sub);
+            OrderService.unsubscribeFromOrders(sub, supabase);
         };
     }, [user]);
 
     const handleAcceptOrder = async (orderId: string) => {
         if (!user) return;
-        const res = await OrderService.assignWaiter(orderId, user.id);
+        const res = await OrderService.assignWaiter(orderId, user.id, supabase);
         if (res) {
             toast.success("Order Accepted", {
                 description: `You are now responsible for Order #${res.orderNumber}`
@@ -132,7 +132,7 @@ const WaiterDashboard = () => {
     };
 
     const handleUpdateStatus = async (orderId: string, status: Order['status']) => {
-        const res = await OrderService.updateOrderStatus(orderId, status);
+        const res = await OrderService.updateOrderStatus(orderId, status, supabase);
         if (res) {
             toast.success(`Order marked as ${status}`);
             loadData();

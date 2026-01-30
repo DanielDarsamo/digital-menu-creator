@@ -89,6 +89,36 @@ export class MenuService {
         return data;
     }
 
+    static async getCategories(client: SupabaseClient = supabase): Promise<DBMenuCategory[]> {
+        const { data, error } = await client
+            .from('menu_categories')
+            .select('*')
+            .order('sort_order', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+    }
+
+    static async uploadImage(file: File, client: SupabaseClient = supabase): Promise<string> {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await client
+            .storage
+            .from('menu_images')
+            .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = client
+            .storage
+            .from('menu_images')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
+    }
+
     static async seedDatabase(client: SupabaseClient = supabase) {
         const { menuCategories } = await import('@/data/menuData');
 
