@@ -116,7 +116,7 @@ export class OrderService {
         try {
             const { data, error } = await client
                 .from('orders')
-                .select('status, created_at');
+                .select('status, created_at, delivered_at');
 
             if (error) throw error;
 
@@ -125,7 +125,11 @@ export class OrderService {
             const preparing = data.filter(o => o.status === 'preparing').length;
 
             const today = new Date().toDateString();
-            const todayCount = data.filter(o => new Date(o.created_at).toDateString() === today).length;
+            const todayCount = data.filter(o =>
+                o.status === 'delivered' &&
+                o.delivered_at &&
+                new Date(o.delivered_at).toDateString() === today
+            ).length;
 
             return { total, pending, preparing, todayCount };
         } catch (error) {
