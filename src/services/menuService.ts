@@ -1,5 +1,6 @@
 
 import { supabase } from "@/lib/supabase";
+import { SupabaseClient } from "@supabase/supabase-js";
 import { MenuItem, MenuCategory } from "@/data/menuData";
 
 export interface DBMenuItem {
@@ -23,10 +24,10 @@ export interface DBMenuCategory {
 }
 
 export class MenuService {
-    static async getFullMenu(): Promise<MenuCategory[]> {
+    static async getFullMenu(client: SupabaseClient = supabase): Promise<MenuCategory[]> {
         try {
             // Fetch categories
-            const { data: categories, error: catError } = await supabase
+            const { data: categories, error: catError } = await client
                 .from('menu_categories')
                 .select('*')
                 .order('sort_order', { ascending: true });
@@ -34,7 +35,7 @@ export class MenuService {
             if (catError) throw catError;
 
             // Fetch all items
-            const { data: items, error: itemError } = await supabase
+            const { data: items, error: itemError } = await client
                 .from('menu_items')
                 .select('*')
                 .order('name', { ascending: true });
@@ -56,8 +57,8 @@ export class MenuService {
         }
     }
 
-    static async updateItem(id: string, updates: Partial<DBMenuItem>) {
-        const { data, error } = await supabase
+    static async updateItem(id: string, updates: Partial<DBMenuItem>, client: SupabaseClient = supabase) {
+        const { data, error } = await client
             .from('menu_items')
             .update(updates)
             .eq('id', id)
@@ -68,8 +69,8 @@ export class MenuService {
         return this.mapDbItemToAppItem(data);
     }
 
-    static async createCategory(category: Omit<DBMenuCategory, "id">) {
-        const { data, error } = await supabase
+    static async createCategory(category: Omit<DBMenuCategory, "id">, client: SupabaseClient = supabase) {
+        const { data, error } = await client
             .from('menu_categories')
             .insert(category)
             .select()
@@ -78,8 +79,8 @@ export class MenuService {
         return data;
     }
 
-    static async createItem(item: Omit<DBMenuItem, "id" | "created_at">) {
-        const { data, error } = await supabase
+    static async createItem(item: Omit<DBMenuItem, "id" | "created_at">, client: SupabaseClient = supabase) {
+        const { data, error } = await client
             .from('menu_items')
             .insert(item)
             .select()
@@ -88,15 +89,15 @@ export class MenuService {
         return data;
     }
 
-    static async seedDatabase() {
+    static async seedDatabase(client: SupabaseClient = supabase) {
         const { menuCategories } = await import('@/data/menuData');
-        
+
         let createdCount = 0;
         console.log("Starting seed...");
 
         for (const cat of menuCategories) {
             // Check if category already exists by name to avoid duplicates
-            const { data: existing } = await supabase
+            const { data: existing } = await client
                 .from('menu_categories')
                 .select('id')
                 .eq('name', cat.name)
@@ -109,33 +110,33 @@ export class MenuService {
                     name: cat.name,
                     icon: cat.icon,
                     sort_order: 0 // You might want to map index to sort_order
-                });
+                }, client);
                 categoryId = newCat.id;
             }
 
             for (const item of cat.items) {
-                 // Check if item exists
-                 const { data: existingItem } = await supabase
+                // Check if item exists
+                const { data: existingItem } = await client
                     .from('menu_items')
                     .select('id')
                     .eq('name', item.name)
                     .eq('category_id', categoryId)
                     .single();
-                
-                 if (!existingItem) {
-                     await this.createItem({
-                         category_id: categoryId,
-                         name: item.name,
-                         description: item.description || null,
-                         price: typeof item.price === 'string' ? parseFloat(item.price.split('/')[0]) : item.price, // Handle "180 / 850" format crudely for now or split
-                         image_url: item.image || null,
-                         is_vegetarian: item.isVegetarian || false,
-                         is_seafood: item.isSeafood || false,
-                         is_kids_friendly: item.isKidsFriendly || false,
-                         is_available: true
-                     });
-                     createdCount++;
-                 }
+
+                if (!existingItem) {
+                    await this.createItem({
+                        category_id: categoryId,
+                        name: item.name,
+                        description: item.description || null,
+                        price: typeof item.price === 'string' ? parseFloat(item.price.split('/')[0]) : item.price, // Handle "180 / 850" format crudely for now or split
+                        image_url: item.image || null,
+                        is_vegetarian: item.isVegetarian || false,
+                        is_seafood: item.isSeafood || false,
+                        is_kids_friendly: item.isKidsFriendly || false,
+                        is_available: true
+                    }, client);
+                    createdCount++;
+                }
             }
         }
         return createdCount;
@@ -148,7 +149,7 @@ export class MenuService {
             name: dbItem.name,
             description: dbItem.description || undefined,
             price: Number(dbItem.price), // Ensure number
-            category: dbItem.category_id, 
+            category: dbItem.category_id,
             image: dbItem.image_url || undefined,
             isVegetarian: dbItem.is_vegetarian,
             isSeafood: dbItem.is_seafood,

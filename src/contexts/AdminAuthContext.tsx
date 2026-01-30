@@ -1,34 +1,10 @@
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { User, Session, SupabaseClient } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { AuthContext, UserRole } from "./AuthContext";
 
-
-export type UserRole = "admin" | "waiter" | null;
-
-interface AuthContextType {
-    user: User | null;
-    session: Session | null;
-    role: UserRole;
-    loading: boolean;
-    isAdmin: boolean;
-    isWaiter: boolean;
-    signOut: () => Promise<void>;
-    supabase: SupabaseClient;
-}
-
-export const AuthContext = createContext<AuthContextType>({
-    user: null,
-    session: null,
-    role: null,
-    loading: true,
-    isAdmin: false,
-    isWaiter: false,
-    signOut: async () => { },
-    supabase: supabase,
-});
-
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [role, setRole] = useState<UserRole>(null);
@@ -36,7 +12,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     useEffect(() => {
         // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        supabaseAdmin.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setUser(session?.user ?? null);
             if (session?.user) {
@@ -49,13 +25,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Listen for auth changes
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
+        } = supabaseAdmin.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
 
             if (session?.user) {
-                // Only fetch if role isn't already set or user changed
-                setRole(null); // Clear previous role to avoid conflation
+                setRole(null);
                 fetchUserRole(session.user.id);
             } else {
                 setRole(null);
@@ -68,27 +43,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const fetchUserRole = async (userId: string) => {
         try {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('profiles')
                 .select('role')
                 .eq('id', userId)
                 .single();
 
             if (error) {
-                console.error('Error fetching role:', error);
+                console.error('AdminAuth: Error fetching role:', error);
                 setRole(null);
             } else {
                 setRole(data?.role as UserRole);
             }
         } catch (err) {
-            console.error('Unexpected error fetching role:', err);
+            console.error('AdminAuth: Unexpected error:', err);
         } finally {
             setLoading(false);
         }
     };
 
     const signOut = async () => {
-        await supabase.auth.signOut();
+        await supabaseAdmin.auth.signOut();
         setRole(null);
         setUser(null);
         setSession(null);
@@ -102,16 +77,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isAdmin: role === 'admin',
         isWaiter: role === 'waiter',
         signOut,
-        supabase,
+        supabase: supabaseAdmin,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error("useAuth must be used within an AuthProvider");
-    }
-    return context;
 };

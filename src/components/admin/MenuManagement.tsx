@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { MenuService, DBMenuCategory, DBMenuItem } from "@/services/menuService";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { Edit, Plus, Trash2, Image as ImageIcon } from "lucide-react";
 type MenuItemFormData = Omit<DBMenuItem, "id" | "created_at">;
 
 const MenuManagement = () => {
+    const { supabase } = useAuth(); // Get the active client (may be scoped in Dev)
     const [categories, setCategories] = useState<DBMenuCategory[]>([]);
     // We use the app's MenuCategory structure which includes items
     const [menuData, setMenuData] = useState<any[]>([]);
@@ -55,7 +57,7 @@ const MenuManagement = () => {
         // Wait, `getFullMenu` returns nested structure.
 
         try {
-            const data = await MenuService.getFullMenu();
+            const data = await MenuService.getFullMenu(supabase);
             // We need to flatten or structure this for the table.
             // Also we need raw categories for the dropdown.
             // Let's assume we can fetch categories separately or parse them from result.
@@ -75,7 +77,7 @@ const MenuManagement = () => {
     const handleSave = async () => {
         try {
             if (editingItem) {
-                await MenuService.updateItem(editingItem.id, formData);
+                await MenuService.updateItem(editingItem.id, formData, supabase);
                 toast.success("Item updated");
             } else {
                 // Create not implemented in service yet
@@ -110,7 +112,7 @@ const MenuManagement = () => {
                     <Button variant="outline" onClick={async () => {
                         try {
                             setLoading(true);
-                            const count = await MenuService.seedDatabase();
+                            const count = await MenuService.seedDatabase(supabase);
                             toast.success(`Database seeded with ${count} items`);
                             loadMenu();
                         } catch (e) {
@@ -158,7 +160,8 @@ const MenuManagement = () => {
                                             onCheckedChange={(checked) => {
                                                 // Optimistic update
                                                 // API Call
-                                                MenuService.toggleAvailability(item.id, !checked).then(() => {
+                                                // Note: we need to extend toggleAvailability in service if it exists, or updateItem.
+                                                MenuService.updateItem(item.id, { is_available: checked }, supabase).then(() => {
                                                     toast.success(`Item ${checked ? 'enabled' : 'disabled'}`);
                                                     loadMenu();
                                                 });

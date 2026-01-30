@@ -9,13 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-const Login = () => {
+import { SupabaseClient } from "@supabase/supabase-js";
+
+interface LoginProps {
+    supabaseClient?: SupabaseClient;
+}
+
+const Login = ({ supabaseClient = supabase }: LoginProps) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Determine which client is being used to show in UI (helper for dev)
+    const isCustomClient = supabaseClient !== supabase;
 
     // Redirect to this path after login if it was set
     const from = location.state?.from?.pathname || "/";
@@ -25,7 +34,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -34,7 +43,7 @@ const Login = () => {
 
             if (data.session) {
                 // Fetch role to determine redirect
-                const { data: profile } = await supabase
+                const { data: profile } = await supabaseClient
                     .from('profiles')
                     .select('role')
                     .eq('id', data.session.user.id)
@@ -75,6 +84,11 @@ const Login = () => {
                     <CardDescription className="text-center">
                         Sign in to access the dashboard
                     </CardDescription>
+                    {isCustomClient && (
+                        <div className="mt-2 text-xs font-mono text-center text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                            DEV MODE: Alternate Auth Client Active
+                        </div>
+                    )}
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="space-y-4">
