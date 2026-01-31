@@ -93,14 +93,18 @@ const WaiterDashboard = () => {
     const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
     const [myOrders, setMyOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
+    const [performance, setPerformance] = useState<any>(null);
 
     const loadData = async () => {
         if (!user) return;
         setLoading(true);
         const available = await OrderService.getAvailableOrders(supabase);
         const mine = await OrderService.getWaiterOrders(user.id, supabase);
+        const stats = await OrderService.getWaiterStats(user.id, supabase);
+
         setAvailableOrders(available);
         setMyOrders(mine);
+        setPerformance(stats);
         setLoading(false);
     };
 
@@ -108,8 +112,6 @@ const WaiterDashboard = () => {
         loadData();
 
         const sub = OrderService.subscribeToOrders(() => {
-            // Simple approach: reload all on any change
-            // Ideally we check payload, but for small scale this is robust entough
             loadData();
         }, supabase);
 
@@ -131,6 +133,24 @@ const WaiterDashboard = () => {
         }
     };
 
+    const handleRejectOrder = async (orderId: string) => {
+        const reason = prompt("Please provide a reason for rejection (required):");
+        if (!reason || reason.trim() === "") {
+            toast.error("Rejection reason is required");
+            return;
+        }
+
+        try {
+            const res = await OrderService.rejectOrder(orderId, reason, supabase);
+            if (res) {
+                toast.success("Order Rejected");
+                loadData();
+            }
+        } catch (error) {
+            toast.error("Failed to reject order");
+        }
+    };
+
     const handleUpdateStatus = async (orderId: string, status: Order['status']) => {
         const res = await OrderService.updateOrderStatus(orderId, status, supabase);
         if (res) {
@@ -142,7 +162,7 @@ const WaiterDashboard = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="min-h-screen bg-gray-50 flex flex-col font-body">
             {/* Header */}
             <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -165,7 +185,7 @@ const WaiterDashboard = () => {
             {/* Content */}
             <main className="flex-1 container mx-auto px-4 py-4 max-w-5xl">
                 <Tabs defaultValue="tables" className="space-y-4">
-                    <TabsList className="grid w-full grid-cols-3 h-12">
+                    <TabsList className="grid w-full grid-cols-4 h-12">
                         <TabsTrigger value="tables" className="text-base">
                             Tables
                         </TabsTrigger>
@@ -184,6 +204,9 @@ const WaiterDashboard = () => {
                                     {availableOrders.length}
                                 </Badge>
                             )}
+                        </TabsTrigger>
+                        <TabsTrigger value="performance" className="text-base">
+                            My Stats
                         </TabsTrigger>
                     </TabsList>
 
@@ -204,14 +227,14 @@ const WaiterDashboard = () => {
                                     key={order.id}
                                     order={order}
                                     actionButton={
-                                        <div className="flex gap-2">
+                                        <div className="grid grid-cols-2 gap-2">
                                             {order.status === 'confirmed' && (
                                                 <Button
                                                     className="w-full bg-orange-500 hover:bg-orange-600"
                                                     onClick={() => handleUpdateStatus(order.id, 'preparing')}
                                                 >
                                                     <ChefHat className="w-4 h-4 mr-2" />
-                                                    Start Preparing
+                                                    Start Prep
                                                 </Button>
                                             )}
                                             {order.status === 'preparing' && (
@@ -230,9 +253,16 @@ const WaiterDashboard = () => {
                                                     onClick={() => handleUpdateStatus(order.id, 'delivered')}
                                                 >
                                                     <CheckCircle2 className="w-4 h-4 mr-2" />
-                                                    Mark delivered
+                                                    Delivered
                                                 </Button>
                                             )}
+                                            <Button
+                                                variant="outline"
+                                                className="w-full text-destructive hover:bg-destructive/10"
+                                                onClick={() => handleRejectOrder(order.id)}
+                                            >
+                                                Reject
+                                            </Button>
                                         </div>
                                     }
                                 />
@@ -252,16 +282,54 @@ const WaiterDashboard = () => {
                                     key={order.id}
                                     order={order}
                                     actionButton={
-                                        <Button
-                                            className="w-full"
-                                            onClick={() => handleAcceptOrder(order.id)}
-                                        >
-                                            Accept Order
-                                        </Button>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                className="flex-1"
+                                                onClick={() => handleAcceptOrder(order.id)}
+                                            >
+                                                Accept Order
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="text-destructive"
+                                                onClick={() => handleRejectOrder(order.id)}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
                                     }
                                 />
                             ))
                         )}
+                    </TabsContent>
+
+                    <TabsContent value="performance">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
+                                <CardHeader className="pb-2">
+                                    <CardDescription>Lifetime Orders</CardDescription>
+                                    <CardTitle className="text-3xl">{performance?.total_orders || 0}</CardTitle>
+                                </CardHeader>
+                            </Card>
+                            <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
+                                <CardHeader className="pb-2">
+                                    <CardDescription>Lifetime Revenue</CardDescription>
+                                    <CardTitle className="text-3xl font-display">{formatPrice(performance?.total_revenue || 0)}</CardTitle>
+                                </CardHeader>
+                            </Card>
+                            <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
+                                <CardHeader className="pb-2">
+                                    <CardDescription>Delivered Today</CardDescription>
+                                    <CardTitle className="text-3xl text-green-600">{performance?.today_orders || 0}</CardTitle>
+                                </CardHeader>
+                            </Card>
+                            <Card className="border-none shadow-premium bg-card/50 backdrop-blur-sm">
+                                <CardHeader className="pb-2">
+                                    <CardDescription>Today's Revenue</CardDescription>
+                                    <CardTitle className="text-3xl font-display text-primary">{formatPrice(performance?.today_revenue || 0)}</CardTitle>
+                                </CardHeader>
+                            </Card>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </main>

@@ -21,11 +21,12 @@ export interface Order {
         notes?: string;
     };
     status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+    paymentType?: 'cash' | 'card' | 'mobile';
     createdAt: string;
     updatedAt: string;
     sentViaWhatsApp: boolean;
     sentToAdmin: boolean;
-    waiterId?: string;
+    acceptedBy?: string;
     acceptedAt?: string;
     deliveredAt?: string;
     statusHistory?: {
@@ -34,6 +35,7 @@ export interface Order {
         changedAt: string;
         changedBy: string;
     }[];
+    rejectionReason?: string;
 }
 
 export class OrderService {
@@ -51,12 +53,14 @@ export class OrderService {
                 table: row.customer_table || undefined,
                 notes: row.customer_notes || undefined,
             },
+            rejectionReason: row.rejection_reason || undefined,
             status: row.status,
+            paymentType: row.payment_type || undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
             sentViaWhatsApp: row.sent_via_whatsapp,
             sentToAdmin: row.sent_to_admin,
-            waiterId: row.waiter_id,
+            acceptedBy: row.accepted_by || row.waiter_id, // Support both column names during migration
             acceptedAt: row.accepted_at,
             deliveredAt: row.delivered_at,
             statusHistory: row.status_history ? row.status_history.map((h: any) => ({
@@ -323,6 +327,42 @@ export class OrderService {
         }
     }
 
+    static async rejectOrder(orderId: string, reason: string, client: SupabaseClient = supabase): Promise<Order | null> {
+        try {
+            const { data, error } = await client
+                .from('orders')
+                .update({
+                    status: 'cancelled',
+                    rejection_reason: reason
+                })
+                .eq('id', orderId)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data ? this.dbToOrder(data) : null;
+        } catch (error) {
+            console.error('Failed to reject order:', error);
+            throw error;
+        }
+    }
+
+    static async getWaiterStats(waiterId: string, client: SupabaseClient = supabase) {
+        try {
+            const { data, error } = await client
+                .from('waiter_performance')
+                .select('*')
+                .eq('waiter_id', waiterId)
+                .single();
+
+            if (error && error.code !== 'PGRST116') throw error; // Handle empty result
+            return data || { total_orders: 0, total_revenue: 0, today_orders: 0, today_revenue: 0 };
+        } catch (error) {
+            console.error('Failed to fetch waiter stats:', error);
+            return { total_orders: 0, total_revenue: 0, today_orders: 0, today_revenue: 0 };
+        }
+    }
+
     static async getAvailableOrders(client: SupabaseClient = supabase): Promise<Order[]> {
         // Orders that are confirmed but not yet assigned (or just confirmed)
         // Adjust logic based on exact requirements. 
@@ -348,7 +388,7 @@ export class OrderService {
             const { data, error } = await client
                 .from('orders')
                 .select('*')
-                .eq('waiter_id', waiterId)
+                .eq('accepted_by', waiterId)
                 .in('status', ['confirmed', 'preparing', 'ready']) // Active orders
                 .order('updated_at', { ascending: false });
 

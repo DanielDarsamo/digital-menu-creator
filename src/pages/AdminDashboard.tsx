@@ -15,33 +15,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Import sub-components (We will refactor the existing order list into a sub-component in the next step, 
-// for now we will keep the structure clean)
+// Import sub-components
 import AdminOrdersView from "@/components/admin/AdminOrdersView";
 import MenuManagement from "@/components/admin/MenuManagement";
-
-// Placeholder components for new features
-
-
-const StaffManagement = () => (
-    <div className="p-8 text-center border rounded-lg bg-muted/20">
-        <h2 className="text-xl font-bold mb-2">Staff Management</h2>
-        <p className="text-muted-foreground">Manage waiters and admin accounts.</p>
-        <div className="mt-4 p-4 bg-yellow-50 text-yellow-800 rounded inline-block">
-            Coming Soon in Phase 3
-        </div>
-    </div>
-);
-
-const AnalyticsDashboard = () => (
-    <div className="p-8 text-center border rounded-lg bg-muted/20">
-        <h2 className="text-xl font-bold mb-2">Analytics & Reports</h2>
-        <p className="text-muted-foreground">View business intelligence and performance metrics.</p>
-        <div className="mt-4 p-4 bg-yellow-50 text-yellow-800 rounded inline-block">
-            Coming Soon in Phase 3
-        </div>
-    </div>
-);
+import StaffManagement from "@/components/admin/StaffManagement";
+import AnalyticsDashboard from "@/components/admin/AnalyticsDashboard";
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
