@@ -3,142 +3,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Order, OrderService } from "@/services/orderService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { LogOut, Bell, CheckCircle2, ChefHat, Package, Clock, MapPin, User, FileText, CreditCard, Banknote, Smartphone } from "lucide-react";
+import { LogOut, CheckCircle2, ChefHat, Package } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import TableView from "@/components/waiter/TableView";
+import { OrderCard } from "@/components/shared/OrderCard";
 
+// Helper for price formatting (kept for stats view)
 const formatPrice = (price: number) => {
     return new Intl.NumberFormat("pt-MZ").format(price) + " MT";
-};
-
-const WaiterOrderCard = ({
-    order,
-    actionButton,
-    onPaymentTypeChange
-}: {
-    order: Order,
-    actionButton: React.ReactNode,
-    onPaymentTypeChange?: (paymentType: 'cash' | 'card' | 'mobile') => void
-}) => {
-    const getPaymentIcon = (type?: string) => {
-        switch (type) {
-            case 'cash': return <Banknote className="h-4 w-4" />;
-            case 'card': return <CreditCard className="h-4 w-4" />;
-            case 'mobile': return <Smartphone className="h-4 w-4" />;
-            default: return null;
-        }
-    };
-
-    return (
-        <Card className="mb-4 overflow-hidden border-l-4 border-l-primary">
-            <CardHeader className="pb-3 bg-muted/20">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                            Order #{order.orderNumber}
-                            <Badge variant="outline" className="bg-background">
-                                {order.status.toUpperCase()}
-                            </Badge>
-                            {order.paymentType && (
-                                <Badge variant="secondary" className="flex items-center gap-1">
-                                    {getPaymentIcon(order.paymentType)}
-                                    {order.paymentType.toUpperCase()}
-                                </Badge>
-                            )}
-                        </CardTitle>
-                        <CardDescription>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</CardDescription>
-                    </div>
-                    <div className="text-right font-bold text-lg text-primary">
-                        {formatPrice(order.totalPrice)}
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-                {/* Customer Info */}
-                {(order.customerInfo?.table || order.customerInfo?.name) && (
-                    <div className="flex gap-4 text-sm font-medium p-2 bg-accent/20 rounded-md">
-                        {order.customerInfo.table && (
-                            <div className="flex items-center gap-1.5">
-                                <MapPin className="h-4 w-4 text-primary" />
-                                <span>Table {order.customerInfo.table}</span>
-                            </div>
-                        )}
-                        {order.customerInfo.name && (
-                            <div className="flex items-center gap-1.5 border-l pl-4 border-muted-foreground/30">
-                                <User className="h-4 w-4 text-primary" />
-                                <span>{order.customerInfo.name}</span>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Items */}
-                <div className="space-y-1">
-                    {order.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-sm py-1 border-b border-dashed last:border-0">
-                            <span>
-                                <span className="font-bold mr-2">{item.quantity}x</span>
-                                {item.name}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Notes */}
-                {order.customerInfo?.notes && (
-                    <div className="text-sm bg-yellow-50 text-yellow-800 p-2 rounded border border-yellow-200 flex gap-2">
-                        <FileText className="h-4 w-4 shrink-0 mt-0.5" />
-                        <span className="italic">{order.customerInfo.notes}</span>
-                    </div>
-                )}
-
-                {/* Payment Type Selector (for confirmed/preparing/ready orders) */}
-                {onPaymentTypeChange && ['confirmed', 'preparing', 'ready'].includes(order.status) && (
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Payment Method:</label>
-                        <div className="flex gap-2">
-                            <Button
-                                variant={order.paymentType === 'cash' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => onPaymentTypeChange('cash')}
-                                className="flex-1"
-                            >
-                                <Banknote className="h-4 w-4 mr-1" />
-                                Cash
-                            </Button>
-                            <Button
-                                variant={order.paymentType === 'card' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => onPaymentTypeChange('card')}
-                                className="flex-1"
-                            >
-                                <CreditCard className="h-4 w-4 mr-1" />
-                                Card
-                            </Button>
-                            <Button
-                                variant={order.paymentType === 'mobile' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => onPaymentTypeChange('mobile')}
-                                className="flex-1"
-                            >
-                                <Smartphone className="h-4 w-4 mr-1" />
-                                M-Pesa
-                            </Button>
-                        </div>
-                    </div>
-                )}
-
-                {/* Actions */}
-                <div className="pt-4 border-t mt-2">
-                    {actionButton}
-                </div>
-            </CardContent>
-        </Card>
-    );
 };
 
 const WaiterDashboard = () => {
@@ -176,7 +50,13 @@ const WaiterDashboard = () => {
     const handleAcceptOrder = async (orderId: string) => {
         if (!user) return;
         try {
-            const res = await OrderService.acceptOrder(orderId, user.id, supabase);
+            // Create actor context
+            const actor = {
+                role: 'waiter' as const,
+                name: user.user_metadata?.full_name || 'Waiter',
+                userId: user.id
+            };
+            const res = await OrderService.acceptOrder(orderId, actor, supabase);
             if (res) {
                 toast.success("Order Accepted", {
                     description: `You are now responsible for Order #${res.orderNumber}`
@@ -188,15 +68,25 @@ const WaiterDashboard = () => {
         }
     };
 
-    const handleRejectOrder = async (orderId: string) => {
-        const reason = prompt("Please provide a reason for rejection (required):");
+    const handleRejectOrder = async (orderId: string, reasonInput?: string) => {
+        let reason = reasonInput;
+        if (!reason) {
+            reason = prompt("Please provide a reason for rejection (required):") || "";
+        }
+
         if (!reason || reason.trim() === "") {
             toast.error("Rejection reason is required");
             return;
         }
 
         try {
-            const res = await OrderService.rejectOrder(orderId, reason, supabase);
+            // Create actor context
+            const actor = {
+                role: 'waiter' as const,
+                name: user?.user_metadata?.full_name || 'Waiter',
+                userId: user?.id || ''
+            };
+            const res = await OrderService.cancelOrder(orderId, reason, actor, supabase);
             if (res) {
                 toast.success("Order Rejected");
                 loadData();
@@ -209,7 +99,12 @@ const WaiterDashboard = () => {
     const handleUpdatePaymentType = async (orderId: string, paymentType: 'cash' | 'card' | 'mobile') => {
         if (!user) return;
         try {
-            await OrderService.updatePaymentType(orderId, paymentType, user.id, supabase);
+            const actor = {
+                role: 'waiter' as const,
+                name: user.user_metadata?.full_name || 'Waiter',
+                userId: user.id
+            };
+            await OrderService.updatePaymentType(orderId, paymentType, actor, supabase);
             toast.success(`Payment type set to ${paymentType}`);
             loadData();
         } catch (error) {
@@ -224,8 +119,15 @@ const WaiterDashboard = () => {
             return;
         }
 
+        if (!user) return;
+
         try {
-            await OrderService.updateOrderStatus(orderId, newStatus, supabase);
+            const actor = {
+                role: 'waiter' as const,
+                name: user.user_metadata?.full_name || 'Waiter',
+                userId: user.id
+            };
+            await OrderService.updateOrderStatus(orderId, newStatus, actor, supabase);
             toast.success("Status Updated");
             loadData();
         } catch (error) {
@@ -234,16 +136,6 @@ const WaiterDashboard = () => {
             } else {
                 toast.error("Failed to update status");
             }
-        }
-    };
-
-    const handleUpdateStatus = async (orderId: string, status: Order['status']) => {
-        const res = await OrderService.updateOrderStatus(orderId, status, supabase);
-        if (res) {
-            toast.success(`Order marked as ${status}`);
-            loadData();
-        } else {
-            toast.error("Failed to update status");
         }
     };
 
@@ -309,50 +201,13 @@ const WaiterDashboard = () => {
                             </div>
                         ) : (
                             myOrders.map(order => (
-                                <WaiterOrderCard
+                                <OrderCard
                                     key={order.id}
                                     order={order}
-                                    onPaymentTypeChange={(paymentType) => handleUpdatePaymentType(order.id, paymentType)}
-                                    actionButton={
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {order.status === 'confirmed' && (
-                                                <Button
-                                                    className="w-full bg-orange-500 hover:bg-orange-600"
-                                                    onClick={() => handleStatusChange(order.id, 'preparing', order)}
-                                                >
-                                                    <ChefHat className="w-4 h-4 mr-2" />
-                                                    Start Prep
-                                                </Button>
-                                            )}
-                                            {order.status === 'preparing' && (
-                                                <Button
-                                                    className="w-full bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleStatusChange(order.id, 'ready', order)}
-                                                >
-                                                    <Package className="w-4 h-4 mr-2" />
-                                                    Mark Ready
-                                                </Button>
-                                            )}
-                                            {order.status === 'ready' && (
-                                                <Button
-                                                    className="w-full"
-                                                    variant="default"
-                                                    onClick={() => handleStatusChange(order.id, 'delivered', order)}
-                                                    disabled={!order.paymentType}
-                                                >
-                                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                                    Delivered
-                                                </Button>
-                                            )}
-                                            <Button
-                                                variant="outline"
-                                                className="w-full text-destructive hover:bg-destructive/10"
-                                                onClick={() => handleRejectOrder(order.id)}
-                                            >
-                                                Reject
-                                            </Button>
-                                        </div>
-                                    }
+                                    userRole="waiter"
+                                    onPaymentTypeChange={(type) => handleUpdatePaymentType(order.id, type)}
+                                    onStatusChange={(status) => handleStatusChange(order.id, status, order)}
+                                    onCancel={(reason) => handleRejectOrder(order.id, reason)}
                                 />
                             ))
                         )}
@@ -366,26 +221,12 @@ const WaiterDashboard = () => {
                             </div>
                         ) : (
                             availableOrders.map(order => (
-                                <WaiterOrderCard
+                                <OrderCard
                                     key={order.id}
                                     order={order}
-                                    actionButton={
-                                        <div className="flex gap-2">
-                                            <Button
-                                                className="flex-1"
-                                                onClick={() => handleAcceptOrder(order.id)}
-                                            >
-                                                Accept Order
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="text-destructive"
-                                                onClick={() => handleRejectOrder(order.id)}
-                                            >
-                                                Reject
-                                            </Button>
-                                        </div>
-                                    }
+                                    userRole="waiter"
+                                    onAccept={() => handleAcceptOrder(order.id)}
+                                    onCancel={(reason) => handleRejectOrder(order.id, reason)}
                                 />
                             ))
                         )}

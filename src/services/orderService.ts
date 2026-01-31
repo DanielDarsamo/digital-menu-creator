@@ -1,6 +1,12 @@
-
 import { supabase } from '@/lib/supabase';
 import { SupabaseClient } from "@supabase/supabase-js";
+
+// Actor context for order operations
+export interface ActorContext {
+    role: 'admin' | 'waiter';
+    name: string;
+    userId: string;
+}
 
 export interface Order {
     id: string;
@@ -27,8 +33,12 @@ export interface Order {
     sentViaWhatsApp: boolean;
     sentToAdmin: boolean;
     acceptedBy?: string;
+    acceptedByRole?: 'admin' | 'waiter';
+    acceptedByName?: string;
     acceptedAt?: string;
     deliveredAt?: string;
+    lastUpdatedByRole?: 'admin' | 'waiter';
+    lastUpdatedByName?: string;
     statusHistory?: {
         oldStatus: string | null;
         newStatus: string;
@@ -61,8 +71,12 @@ export class OrderService {
             sentViaWhatsApp: row.sent_via_whatsapp,
             sentToAdmin: row.sent_to_admin,
             acceptedBy: row.accepted_by || row.waiter_id, // Support both column names during migration
+            acceptedByRole: row.accepted_by_role || undefined,
+            acceptedByName: row.accepted_by_name || undefined,
             acceptedAt: row.accepted_at,
             deliveredAt: row.delivered_at,
+            lastUpdatedByRole: row.last_updated_by_role || undefined,
+            lastUpdatedByName: row.last_updated_by_name || undefined,
             statusHistory: row.status_history ? row.status_history.map((h: any) => ({
                 oldStatus: h.old_status,
                 newStatus: h.new_status,
@@ -242,11 +256,11 @@ export class OrderService {
     static async updateOrderStatus(
         orderId: string,
         status: Order['status'],
+        actor: ActorContext,
         client: SupabaseClient = supabase
     ): Promise<Order | null> {
         try {
-            // Audit logic: Fetch current user and order status
-            const { data: { user } } = await client.auth.getUser();
+            // Audit logic: Fetch current order status
             const { data: currentOrder } = await client
                 .from('orders')
                 .select('status, status_history')
@@ -256,9 +270,8 @@ export class OrderService {
             const oldStatus = currentOrder?.status || null;
             const history = currentOrder?.status_history || [];
 
-            // Skip update if status hasn't changed (optional optimization, but strict audit might record attempts? Let's skip duplicate)
+            // Skip update if status hasn't changed
             if (oldStatus === status) {
-                // But maybe we want to log re-confirmations? Usually no.
                 return this.getOrderById(orderId, client);
             }
 
@@ -266,14 +279,18 @@ export class OrderService {
                 oldStatus,
                 newStatus: status,
                 changedAt: new Date().toISOString(),
-                changedBy: user?.id || 'unknown' // or user email if profile available
+                changedBy: actor.name,
+                changedByRole: actor.role,
+                changedById: actor.userId
             };
 
             const updatedHistory = [...history, newHistoryItem];
 
             const updatePayload: any = {
                 status,
-                status_history: updatedHistory
+                status_history: updatedHistory,
+                last_updated_by_role: actor.role,
+                last_updated_by_name: actor.name
             };
 
             // Auto-update timestamps based on status
@@ -329,13 +346,17 @@ export class OrderService {
         return this.ALLOWED_TRANSITIONS[oldStatus]?.includes(newStatus) || oldStatus === newStatus;
     }
 
-    static async acceptOrder(orderId: string, waiterId: string, client: SupabaseClient = supabase): Promise<Order | null> {
+    static async acceptOrder(orderId: string, actor: ActorContext, client: SupabaseClient = supabase): Promise<Order | null> {
         try {
             const { data, error } = await client
                 .from('orders')
                 .update({
-                    accepted_by: waiterId,
+                    accepted_by: actor.userId,
+                    accepted_by_role: actor.role,
+                    accepted_by_name: actor.name,
                     accepted_at: new Date().toISOString(),
+                    last_updated_by_role: actor.role,
+                    last_updated_by_name: actor.name,
                     status: 'confirmed' // Transition from pending to confirmed
                 })
                 .eq('id', orderId)
@@ -354,21 +375,30 @@ export class OrderService {
 
     // Legacy method for backward compatibility
     static async assignWaiter(orderId: string, waiterId: string, client: SupabaseClient = supabase): Promise<Order | null> {
-        return this.acceptOrder(orderId, waiterId, client);
+        // Use a default actor context for legacy calls
+        const actor: ActorContext = {
+            userId: waiterId,
+            role: 'waiter',
+            name: 'Waiter' // Default name
+        };
+        return this.acceptOrder(orderId, actor, client);
     }
 
     static async updatePaymentType(
         orderId: string,
         paymentType: 'cash' | 'card' | 'mobile',
-        waiterId: string,
+        actor: ActorContext,
         client: SupabaseClient = supabase
     ): Promise<Order | null> {
         try {
             const { data, error } = await client
                 .from('orders')
-                .update({ payment_type: paymentType })
+                .update({
+                    payment_type: paymentType,
+                    last_updated_by_role: actor.role,
+                    last_updated_by_name: actor.name
+                })
                 .eq('id', orderId)
-                .eq('accepted_by', waiterId) // Ensure waiter owns this order
                 .select()
                 .single();
 
@@ -380,13 +410,20 @@ export class OrderService {
         }
     }
 
-    static async rejectOrder(orderId: string, reason: string, client: SupabaseClient = supabase): Promise<Order | null> {
+    static async cancelOrder(
+        orderId: string,
+        reason: string,
+        actor: ActorContext,
+        client: SupabaseClient = supabase
+    ): Promise<Order | null> {
         try {
             const { data, error } = await client
                 .from('orders')
                 .update({
                     status: 'cancelled',
-                    rejection_reason: reason
+                    rejection_reason: reason,
+                    last_updated_by_role: actor.role,
+                    last_updated_by_name: actor.name
                 })
                 .eq('id', orderId)
                 .select()
@@ -395,9 +432,19 @@ export class OrderService {
             if (error) throw error;
             return data ? this.dbToOrder(data) : null;
         } catch (error) {
-            console.error('Failed to reject order:', error);
+            console.error('Failed to cancel order:', error);
             throw error;
         }
+    }
+
+    // Alias for backward compatibility
+    static async rejectOrder(orderId: string, reason: string, client: SupabaseClient = supabase): Promise<Order | null> {
+        const actor: ActorContext = {
+            userId: 'system',
+            role: 'admin',
+            name: 'System'
+        };
+        return this.cancelOrder(orderId, reason, actor, client);
     }
 
     static async getWaiterStats(waiterId: string, client: SupabaseClient = supabase) {

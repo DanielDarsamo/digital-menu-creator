@@ -46,14 +46,10 @@ const App = () => {
                 <AdminAuthProvider>
                   <Routes>
                     <Route path="/" element={
-                      <ProtectedRoute allowedRoles={['admin']}>
-                        <AdminDashboard />
-                      </ProtectedRoute>
+                      <AdminDashboard />
                     } />
                     <Route path="*" element={
-                      <ProtectedRoute allowedRoles={['admin']}>
-                        <AdminDashboard />
-                      </ProtectedRoute>
+                      <AdminDashboard />
                     } />
                     <Route path="login" element={<Login supabaseClient={supabaseAdmin} />} />
                   </Routes>
@@ -70,9 +66,7 @@ const App = () => {
                       </ProtectedRoute>
                     } />
                     <Route path="*" element={
-                      <ProtectedRoute allowedRoles={['waiter']}>
-                        <WaiterDashboard />
-                      </ProtectedRoute>
+                      <WaiterDashboard />
                     } />
                     <Route path="login" element={<Login supabaseClient={supabaseWaiter} />} />
                   </Routes>
