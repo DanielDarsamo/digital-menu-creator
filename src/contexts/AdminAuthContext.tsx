@@ -46,24 +46,32 @@ export const AdminAuthProvider = ({ children }: { children: React.ReactNode }) =
             console.log('[AdminAuth] Fetching role for user:', userId);
             const { data, error } = await supabaseAdmin
                 .from('profiles')
-                .select('role')
+                .select('role, is_active, full_name')
                 .eq('id', userId)
                 .single();
 
             if (error) {
-                console.error('[AdminAuth] Error fetching role:', error);
-                console.log('[AdminAuth] Temporarily setting role to admin due to fetch error');
-                // TEMPORARY WORKAROUND: Set role to admin if fetch fails
-                setRole('admin');
+                console.error('[AdminAuth] Error fetching profile:', error);
+                setRole(null);
             } else {
-                console.log('[AdminAuth] Successfully fetched role:', data?.role);
-                setRole(data?.role as UserRole);
+                if (!data.is_active) {
+                    console.warn('[AdminAuth] User is inactive');
+                    await signOut();
+                    return;
+                }
+
+                // Strict check: Only allow if role is explicitly 'admin'
+                if (data.role === 'admin') {
+                    console.log('[AdminAuth] Access granted for admin:', data.full_name);
+                    setRole('admin');
+                } else {
+                    console.warn('[AdminAuth] Access denied: User is not an admin (role:', data.role, ')');
+                    setRole(null);
+                }
             }
         } catch (err) {
             console.error('[AdminAuth] Unexpected error:', err);
-            console.log('[AdminAuth] Temporarily setting role to admin due to exception');
-            // TEMPORARY WORKAROUND: Set role to admin if exception occurs
-            setRole('admin');
+            setRole(null);
         } finally {
             setLoading(false);
         }

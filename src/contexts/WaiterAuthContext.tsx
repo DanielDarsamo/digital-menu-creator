@@ -46,24 +46,32 @@ export const WaiterAuthProvider = ({ children }: { children: React.ReactNode }) 
             console.log('[WaiterAuth] Fetching role for user:', userId);
             const { data, error } = await supabaseWaiter
                 .from('profiles')
-                .select('role')
+                .select('role, is_active, full_name')
                 .eq('id', userId)
                 .single();
 
             if (error) {
-                console.error('[WaiterAuth] Error fetching role:', error);
-                console.log('[WaiterAuth] Temporarily setting role to waiter due to fetch error');
-                // TEMPORARY WORKAROUND: Set role to waiter if fetch fails
-                setRole('waiter');
+                console.error('[WaiterAuth] Error fetching profile:', error);
+                setRole(null);
             } else {
-                console.log('[WaiterAuth] Successfully fetched role:', data?.role);
-                setRole(data?.role as UserRole);
+                if (!data.is_active) {
+                    console.warn('[WaiterAuth] User is inactive');
+                    await signOut();
+                    return;
+                }
+
+                // Strict check: Only allow if role is explicitly 'waiter'
+                if (data.role === 'waiter') {
+                    console.log('[WaiterAuth] Access granted for waiter:', data.full_name);
+                    setRole('waiter');
+                } else {
+                    console.warn('[WaiterAuth] Access denied: User is not a waiter (role:', data.role, ')');
+                    setRole(null);
+                }
             }
         } catch (err) {
             console.error('[WaiterAuth] Unexpected error:', err);
-            console.log('[WaiterAuth] Temporarily setting role to waiter due to exception');
-            // TEMPORARY WORKAROUND: Set role to waiter if exception occurs
-            setRole('waiter');
+            setRole(null);
         } finally {
             setLoading(false);
         }

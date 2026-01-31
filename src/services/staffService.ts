@@ -5,23 +5,21 @@ import { SupabaseClient } from "@supabase/supabase-js";
 export interface StaffProfile {
     id: string;
     full_name: string | null;
-    role: 'admin' | 'waiter';
+    role: 'admin' | 'waiter' | null;
+    is_active: boolean;
+    phone: string | null;
     created_at: string;
     last_login: string | null;
-    email?: string; // Opted from auth join if possible, or just profile
+    email?: string;
 }
 
 export class StaffService {
     static async getAllStaff(client: SupabaseClient = supabase): Promise<StaffProfile[]> {
         try {
-            // Note: Since we are querying public.profiles, we get what's there.
-            // If we want emails, we'd need to join with auth.users (which is restricted) 
-            // or have a trigger sync emails to profiles.
-            // For now, let's fetch profiles.
             const { data, error } = await client
                 .from('profiles')
                 .select('*')
-                .order('role', { ascending: true });
+                .order('created_at', { ascending: false }); // Newest first
 
             if (error) throw error;
             return data || [];
@@ -44,6 +42,26 @@ export class StaffService {
             return data;
         } catch (error) {
             console.error('Error updating staff role:', error);
+            throw error;
+        }
+    }
+
+    static async updateStaffStatus(id: string, isActive: boolean, role?: 'admin' | 'waiter', client: SupabaseClient = supabase) {
+        try {
+            const updates: any = { is_active: isActive };
+            if (role) updates.role = role;
+
+            const { data, error } = await client
+                .from('profiles')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error updating staff status:', error);
             throw error;
         }
     }
