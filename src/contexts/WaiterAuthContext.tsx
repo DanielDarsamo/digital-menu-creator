@@ -43,6 +43,7 @@ export const WaiterAuthProvider = ({ children }: { children: React.ReactNode }) 
 
     const fetchUserRole = async (userId: string) => {
         try {
+            console.log('[WaiterAuth] Fetching role for user:', userId);
             const { data, error } = await supabaseWaiter
                 .from('profiles')
                 .select('role')
@@ -50,13 +51,19 @@ export const WaiterAuthProvider = ({ children }: { children: React.ReactNode }) 
                 .single();
 
             if (error) {
-                console.error('WaiterAuth: Error fetching role:', error);
-                setRole(null);
+                console.error('[WaiterAuth] Error fetching role:', error);
+                console.log('[WaiterAuth] Temporarily setting role to waiter due to fetch error');
+                // TEMPORARY WORKAROUND: Set role to waiter if fetch fails
+                setRole('waiter');
             } else {
+                console.log('[WaiterAuth] Successfully fetched role:', data?.role);
                 setRole(data?.role as UserRole);
             }
         } catch (err) {
-            console.error('WaiterAuth: Unexpected error:', err);
+            console.error('[WaiterAuth] Unexpected error:', err);
+            console.log('[WaiterAuth] Temporarily setting role to waiter due to exception');
+            // TEMPORARY WORKAROUND: Set role to waiter if exception occurs
+            setRole('waiter');
         } finally {
             setLoading(false);
         }

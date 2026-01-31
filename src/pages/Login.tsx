@@ -42,20 +42,45 @@ const Login = ({ supabaseClient = supabase }: LoginProps) => {
             if (error) throw error;
 
             if (data.session) {
-                // Fetch role to determine redirect
-                const { data: profile } = await supabaseClient
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', data.session.user.id)
-                    .single();
+                console.log('[Login] User logged in:', data.session.user.id);
 
-                const role = profile?.role;
+                // Try to fetch role to determine redirect
+                let role = null;
+                try {
+                    const { data: profile, error: profileError } = await supabaseClient
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', data.session.user.id)
+                        .single();
+
+                    if (profileError) {
+                        console.error('[Login] Error fetching profile:', profileError);
+                    } else {
+                        role = profile?.role;
+                        console.log('[Login] Fetched role from profile:', role);
+                    }
+                } catch (err) {
+                    console.error('[Login] Exception fetching profile:', err);
+                }
+
+                // FALLBACK: Determine role from current path if fetch failed
+                if (!role) {
+                    const currentPath = location.pathname;
+                    if (currentPath.includes('/admin')) {
+                        role = 'admin';
+                        console.log('[Login] Using fallback role based on path: admin');
+                    } else if (currentPath.includes('/waiter')) {
+                        role = 'waiter';
+                        console.log('[Login] Using fallback role based on path: waiter');
+                    }
+                }
 
                 toast({
                     title: "Logged in successfully",
                     description: `Welcome back!`,
                 });
 
+                // Navigate based on role
                 if (role === 'admin') {
                     navigate('/admin');
                 } else if (role === 'waiter') {

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { LogOut, Bell, CheckCircle2, ChefHat, Package, Clock, MapPin, User, FileText } from "lucide-react";
+import { LogOut, Bell, CheckCircle2, ChefHat, Package, Clock, MapPin, User, FileText, CreditCard, Banknote, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import TableView from "@/components/waiter/TableView";
@@ -17,11 +17,22 @@ const formatPrice = (price: number) => {
 
 const WaiterOrderCard = ({
     order,
-    actionButton
+    actionButton,
+    onPaymentTypeChange
 }: {
     order: Order,
-    actionButton: React.ReactNode
+    actionButton: React.ReactNode,
+    onPaymentTypeChange?: (paymentType: 'cash' | 'card' | 'mobile') => void
 }) => {
+    const getPaymentIcon = (type?: string) => {
+        switch (type) {
+            case 'cash': return <Banknote className="h-4 w-4" />;
+            case 'card': return <CreditCard className="h-4 w-4" />;
+            case 'mobile': return <Smartphone className="h-4 w-4" />;
+            default: return null;
+        }
+    };
+
     return (
         <Card className="mb-4 overflow-hidden border-l-4 border-l-primary">
             <CardHeader className="pb-3 bg-muted/20">
@@ -32,6 +43,12 @@ const WaiterOrderCard = ({
                             <Badge variant="outline" className="bg-background">
                                 {order.status.toUpperCase()}
                             </Badge>
+                            {order.paymentType && (
+                                <Badge variant="secondary" className="flex items-center gap-1">
+                                    {getPaymentIcon(order.paymentType)}
+                                    {order.paymentType.toUpperCase()}
+                                </Badge>
+                            )}
                         </CardTitle>
                         <CardDescription>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</CardDescription>
                     </div>
@@ -79,6 +96,42 @@ const WaiterOrderCard = ({
                     </div>
                 )}
 
+                {/* Payment Type Selector (for confirmed/preparing/ready orders) */}
+                {onPaymentTypeChange && ['confirmed', 'preparing', 'ready'].includes(order.status) && (
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Payment Method:</label>
+                        <div className="flex gap-2">
+                            <Button
+                                variant={order.paymentType === 'cash' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => onPaymentTypeChange('cash')}
+                                className="flex-1"
+                            >
+                                <Banknote className="h-4 w-4 mr-1" />
+                                Cash
+                            </Button>
+                            <Button
+                                variant={order.paymentType === 'card' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => onPaymentTypeChange('card')}
+                                className="flex-1"
+                            >
+                                <CreditCard className="h-4 w-4 mr-1" />
+                                Card
+                            </Button>
+                            <Button
+                                variant={order.paymentType === 'mobile' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => onPaymentTypeChange('mobile')}
+                                className="flex-1"
+                            >
+                                <Smartphone className="h-4 w-4 mr-1" />
+                                M-Pesa
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Actions */}
                 <div className="pt-4 border-t mt-2">
                     {actionButton}
@@ -122,13 +175,15 @@ const WaiterDashboard = () => {
 
     const handleAcceptOrder = async (orderId: string) => {
         if (!user) return;
-        const res = await OrderService.assignWaiter(orderId, user.id, supabase);
-        if (res) {
-            toast.success("Order Accepted", {
-                description: `You are now responsible for Order #${res.orderNumber}`
-            });
-            loadData();
-        } else {
+        try {
+            const res = await OrderService.acceptOrder(orderId, user.id, supabase);
+            if (res) {
+                toast.success("Order Accepted", {
+                    description: `You are now responsible for Order #${res.orderNumber}`
+                });
+                loadData();
+            }
+        } catch (error) {
             toast.error("Failed to accept order");
         }
     };
@@ -148,6 +203,37 @@ const WaiterDashboard = () => {
             }
         } catch (error) {
             toast.error("Failed to reject order");
+        }
+    };
+
+    const handleUpdatePaymentType = async (orderId: string, paymentType: 'cash' | 'card' | 'mobile') => {
+        if (!user) return;
+        try {
+            await OrderService.updatePaymentType(orderId, paymentType, user.id, supabase);
+            toast.success(`Payment type set to ${paymentType}`);
+            loadData();
+        } catch (error) {
+            toast.error("Failed to update payment type");
+        }
+    };
+
+    const handleStatusChange = async (orderId: string, newStatus: Order['status'], currentOrder: Order) => {
+        // Validate payment type is set before marking as delivered
+        if (newStatus === 'delivered' && !currentOrder.paymentType) {
+            toast.error("Please select a payment type before marking as delivered");
+            return;
+        }
+
+        try {
+            await OrderService.updateOrderStatus(orderId, newStatus, supabase);
+            toast.success("Status Updated");
+            loadData();
+        } catch (error) {
+            if (error instanceof Error) {
+                toast.error(error.message);
+            } else {
+                toast.error("Failed to update status");
+            }
         }
     };
 
@@ -226,12 +312,13 @@ const WaiterDashboard = () => {
                                 <WaiterOrderCard
                                     key={order.id}
                                     order={order}
+                                    onPaymentTypeChange={(paymentType) => handleUpdatePaymentType(order.id, paymentType)}
                                     actionButton={
                                         <div className="grid grid-cols-2 gap-2">
                                             {order.status === 'confirmed' && (
                                                 <Button
                                                     className="w-full bg-orange-500 hover:bg-orange-600"
-                                                    onClick={() => handleUpdateStatus(order.id, 'preparing')}
+                                                    onClick={() => handleStatusChange(order.id, 'preparing', order)}
                                                 >
                                                     <ChefHat className="w-4 h-4 mr-2" />
                                                     Start Prep
@@ -240,7 +327,7 @@ const WaiterDashboard = () => {
                                             {order.status === 'preparing' && (
                                                 <Button
                                                     className="w-full bg-green-600 hover:bg-green-700"
-                                                    onClick={() => handleUpdateStatus(order.id, 'ready')}
+                                                    onClick={() => handleStatusChange(order.id, 'ready', order)}
                                                 >
                                                     <Package className="w-4 h-4 mr-2" />
                                                     Mark Ready
@@ -250,7 +337,8 @@ const WaiterDashboard = () => {
                                                 <Button
                                                     className="w-full"
                                                     variant="default"
-                                                    onClick={() => handleUpdateStatus(order.id, 'delivered')}
+                                                    onClick={() => handleStatusChange(order.id, 'delivered', order)}
+                                                    disabled={!order.paymentType}
                                                 >
                                                     <CheckCircle2 className="w-4 h-4 mr-2" />
                                                     Delivered

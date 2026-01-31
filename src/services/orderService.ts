@@ -302,28 +302,81 @@ export class OrderService {
             return updatedOrder;
         } catch (error) {
             console.error('Failed to update order status:', error);
-            return null;
+            // Re-throw database constraint errors with user-friendly messages
+            if (error instanceof Error) {
+                if (error.message.includes('Invalid status transition')) {
+                    throw new Error('Invalid status transition. Please follow the correct order flow.');
+                }
+                if (error.message.includes('Payment type is required')) {
+                    throw new Error('Payment type must be selected before marking as delivered');
+                }
+            }
+            throw error;
         }
     }
 
-    static async assignWaiter(orderId: string, waiterId: string, client: SupabaseClient = supabase): Promise<Order | null> {
+    // Status transition validation (client-side)
+    private static ALLOWED_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
+        pending: ['confirmed'],
+        confirmed: ['preparing', 'cancelled'],
+        preparing: ['ready', 'cancelled'],
+        ready: ['delivered'],
+        delivered: [],
+        cancelled: []
+    };
+
+    static validateStatusTransition(oldStatus: Order['status'], newStatus: Order['status']): boolean {
+        return this.ALLOWED_TRANSITIONS[oldStatus]?.includes(newStatus) || oldStatus === newStatus;
+    }
+
+    static async acceptOrder(orderId: string, waiterId: string, client: SupabaseClient = supabase): Promise<Order | null> {
         try {
             const { data, error } = await client
                 .from('orders')
                 .update({
-                    waiter_id: waiterId,
+                    accepted_by: waiterId,
                     accepted_at: new Date().toISOString(),
-                    // status: 'preparing' // See note in original code
+                    status: 'confirmed' // Transition from pending to confirmed
                 })
                 .eq('id', orderId)
+                .eq('status', 'pending') // Only accept pending orders
+                .is('accepted_by', null) // Only if not already accepted
                 .select()
                 .single();
 
             if (error) throw error;
             return data ? this.dbToOrder(data) : null;
         } catch (error) {
-            console.error('Failed to assign waiter:', error);
-            return null;
+            console.error('Failed to accept order:', error);
+            throw error;
+        }
+    }
+
+    // Legacy method for backward compatibility
+    static async assignWaiter(orderId: string, waiterId: string, client: SupabaseClient = supabase): Promise<Order | null> {
+        return this.acceptOrder(orderId, waiterId, client);
+    }
+
+    static async updatePaymentType(
+        orderId: string,
+        paymentType: 'cash' | 'card' | 'mobile',
+        waiterId: string,
+        client: SupabaseClient = supabase
+    ): Promise<Order | null> {
+        try {
+            const { data, error } = await client
+                .from('orders')
+                .update({ payment_type: paymentType })
+                .eq('id', orderId)
+                .eq('accepted_by', waiterId) // Ensure waiter owns this order
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data ? this.dbToOrder(data) : null;
+        } catch (error) {
+            console.error('Failed to update payment type:', error);
+            throw error;
         }
     }
 

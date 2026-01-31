@@ -28,6 +28,10 @@ import {
     RefreshCw,
     ChevronLeft,
     ChevronRight,
+    CreditCard,
+    Banknote,
+    Smartphone,
+    UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -94,12 +98,26 @@ const OrderCard = ({ order, onStatusChange, onDelete }: {
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                     <div>
-                        <CardTitle className="font-display text-xl flex items-center gap-2">
+                        <CardTitle className="font-display text-xl flex items-center gap-2 flex-wrap">
                             Pedido #{order.orderNumber}
                             <Badge variant="outline" className={cn("border", statusConfig[order.status].color)}>
                                 <StatusIcon className="w-3 h-3 mr-1" />
                                 {statusConfig[order.status].label}
                             </Badge>
+                            {order.paymentType && (
+                                <Badge variant="secondary" className="flex items-center gap-1">
+                                    {order.paymentType === 'cash' && <Banknote className="w-3 h-3" />}
+                                    {order.paymentType === 'card' && <CreditCard className="w-3 h-3" />}
+                                    {order.paymentType === 'mobile' && <Smartphone className="w-3 h-3" />}
+                                    {order.paymentType.toUpperCase()}
+                                </Badge>
+                            )}
+                            {order.acceptedBy && (
+                                <Badge variant="outline" className="flex items-center gap-1 bg-blue-50">
+                                    <UserCheck className="w-3 h-3" />
+                                    Waiter
+                                </Badge>
+                            )}
                         </CardTitle>
                         <CardDescription className="font-body text-xs mt-1">
                             {formatDate(order.createdAt)}
