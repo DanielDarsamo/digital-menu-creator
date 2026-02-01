@@ -3,7 +3,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 
 // Actor context for order operations
 export interface ActorContext {
-    role: 'admin' | 'waiter';
+    role: 'admin' | 'waiter' | 'chef';
     name: string;
     userId: string;
 }
@@ -26,18 +26,18 @@ export interface Order {
         table?: string;
         notes?: string;
     };
-    status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
+    status: 'draft' | 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
     paymentType?: 'cash' | 'card' | 'mobile';
     createdAt: string;
     updatedAt: string;
     sentViaWhatsApp: boolean;
     sentToAdmin: boolean;
     acceptedBy?: string;
-    acceptedByRole?: 'admin' | 'waiter';
+    acceptedByRole?: 'admin' | 'waiter' | 'chef';
     acceptedByName?: string;
     acceptedAt?: string;
     deliveredAt?: string;
-    lastUpdatedByRole?: 'admin' | 'waiter';
+    lastUpdatedByRole?: 'admin' | 'waiter' | 'chef';
     lastUpdatedByName?: string;
     statusHistory?: {
         oldStatus: string | null;
@@ -334,7 +334,8 @@ export class OrderService {
 
     // Status transition validation (client-side)
     private static ALLOWED_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
-        pending: ['confirmed'],
+        draft: ['pending'],
+        pending: ['confirmed', 'cancelled'], // Allow cancel for pending if needed by logic
         confirmed: ['preparing', 'cancelled'],
         preparing: ['ready', 'cancelled'],
         ready: ['delivered'],
