@@ -19,7 +19,6 @@ export interface Database {
                     customer_table: string | null;
                     customer_notes: string | null;
                     status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-                    sent_via_whatsapp: boolean;
                     sent_to_admin: boolean;
                     created_at: string;
                     updated_at: string;
@@ -33,7 +32,6 @@ export interface Database {
                     customer_table?: string | null;
                     customer_notes?: string | null;
                     status?: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-                    sent_via_whatsapp?: boolean;
                     sent_to_admin?: boolean;
                     created_at?: string;
                     updated_at?: string;
@@ -47,7 +45,6 @@ export interface Database {
                     customer_table?: string | null;
                     customer_notes?: string | null;
                     status?: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-                    sent_via_whatsapp?: boolean;
                     sent_to_admin?: boolean;
                     created_at?: string;
                     updated_at?: string;

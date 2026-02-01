@@ -30,7 +30,6 @@ export interface Order {
     paymentType?: 'cash' | 'card' | 'mobile';
     createdAt: string;
     updatedAt: string;
-    sentViaWhatsApp: boolean;
     sentToAdmin: boolean;
     acceptedBy?: string;
     acceptedByRole?: 'admin' | 'waiter' | 'chef';
@@ -68,7 +67,6 @@ export class OrderService {
             paymentType: row.payment_type || undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
-            sentViaWhatsApp: row.sent_via_whatsapp,
             sentToAdmin: row.sent_to_admin,
             acceptedBy: row.accepted_by || row.waiter_id, // Support both column names during migration
             acceptedByRole: row.accepted_by_role || undefined,
@@ -203,7 +201,6 @@ export class OrderService {
         items: Order['items'],
         totalPrice: number,
         customerInfo?: Order['customerInfo'],
-        sentViaWhatsApp: boolean = false,
         sentToAdmin: boolean = false,
         customerSessionId?: string, // New optional param
         client: SupabaseClient = supabase
@@ -221,7 +218,6 @@ export class OrderService {
                 customer_table: customerInfo?.table || null,
                 customer_notes: customerInfo?.notes || null,
                 status: 'pending',
-                sent_via_whatsapp: sentViaWhatsApp,
                 sent_to_admin: sentToAdmin,
             };
 

@@ -198,7 +198,6 @@ export const restaurantInfo = {
   tagline: "Descubra como a verdadeira qualidade tem gosto",
   story: "Bem-vindo à Fortaleza de Sabores, onde cada prato conta uma história de paixão e tradição. Nascidos do amor pela gastronomia moçambicana e influências portuguesas, criamos experiências culinárias únicas que celebram os sabores autênticos da nossa terra. O nosso compromisso é oferecer-lhe momentos memoráveis, combinando ingredientes frescos, receitas tradicionais e um serviço de excelência.",
   phone: "87 183 8947",
-  whatsapp: "258871838947",
   address: "Casa da Cultura, Av. Ho Chi Min, esquina com a Av. Albert Lithuli, Cidade de Maputo",
   locationUrl: "https://maps.app.goo.gl/ntLd49QPh6rs2oqf8",
   hours: "Segunda a Domingo: 11:00 - 23:00",

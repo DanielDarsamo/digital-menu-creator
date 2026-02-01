@@ -23,7 +23,6 @@ interface CustomerInfoDialogProps {
         phone?: string;
         table?: string;
         notes?: string;
-        sendToWhatsApp: boolean;
         sendToAdmin: boolean;
     }) => void;
     session?: CustomerSession | null;
@@ -35,7 +34,6 @@ const CustomerInfoDialog = ({ isOpen, onClose, onSubmit, session }: CustomerInfo
     const [phone, setPhone] = useState(session?.phoneNumber || "");
     const [table, setTable] = useState(session?.tableId || "");
     const [notes, setNotes] = useState("");
-    const [sendToWhatsApp, setSendToWhatsApp] = useState(true);
     const [sendToAdmin, setSendToAdmin] = useState(true);
 
     useEffect(() => {
@@ -72,7 +70,6 @@ const CustomerInfoDialog = ({ isOpen, onClose, onSubmit, session }: CustomerInfo
             phone: phone.trim() || undefined,
             table: table.trim() || undefined,
             notes: notes.trim() || undefined,
-            sendToWhatsApp,
             sendToAdmin,
         });
 
@@ -80,7 +77,6 @@ const CustomerInfoDialog = ({ isOpen, onClose, onSubmit, session }: CustomerInfo
             setTable("");
         }
         setNotes("");
-        setSendToWhatsApp(true);
         setSendToAdmin(true);
     };
 
@@ -143,23 +139,12 @@ const CustomerInfoDialog = ({ isOpen, onClose, onSubmit, session }: CustomerInfo
                                 <Send className="w-4 h-4" /> Sistema
                             </Label>
                         </div>
-                        <div className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                id="sendToWhatsApp"
-                                checked={sendToWhatsApp}
-                                onChange={(e) => setSendToWhatsApp(e.target.checked)}
-                                className="w-4 h-4 text-green-600 border-border rounded focus:ring-green-500"
-                            />
-                            <Label htmlFor="sendToWhatsApp" className="cursor-pointer flex items-center gap-2">
-                                <MessageCircle className="w-4 h-4 text-green-600" /> WhatsApp
-                            </Label>
-                        </div>
+
                     </div>
 
                     <div className="flex gap-3 pt-4">
                         <Button type="button" variant="outline" onClick={onClose} className="flex-1">Cancelar</Button>
-                        <Button type="submit" disabled={!sendToWhatsApp && !sendToAdmin} className="flex-1 bg-primary">Confirmar</Button>
+                        <Button type="submit" disabled={!sendToAdmin} className="flex-1 bg-primary">Confirmar</Button>
                     </div>
                 </form>
             </DialogContent>

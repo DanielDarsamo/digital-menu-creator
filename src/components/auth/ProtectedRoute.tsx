@@ -4,12 +4,19 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
     children: React.ReactNode;
-    allowedRoles?: ("admin" | "waiter")[];
+    allowedRoles?: ("admin" | "waiter" | "chef")[];
 }
 
 export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     const { user, role, loading } = useAuth();
     const location = useLocation();
+    const isDev = import.meta.env.DEV;
+
+    // 🚀 DEV MODE BYPASS - Skip authentication in development
+    if (isDev) {
+        console.log('🔓 DEV MODE: Bypassing authentication for', location.pathname);
+        return <>{children}</>;
+    }
 
     if (loading) {
         return (

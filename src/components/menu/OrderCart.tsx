@@ -51,7 +51,6 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
     phone?: string;
     table?: string;
     notes?: string;
-    sendToWhatsApp: boolean;
     sendToAdmin: boolean;
   }) => {
     setIsSubmitting(true);
@@ -76,7 +75,6 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
           table: customerInfo.table,
           notes: customerInfo.notes,
         },
-        customerInfo.sendToWhatsApp,
         customerInfo.sendToAdmin,
         session?.id // Pass session ID
       );
@@ -90,44 +88,9 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
         return;
       }
 
-      // Send to WhatsApp if requested
-      if (customerInfo.sendToWhatsApp) {
-        let message = `🍽️ *Pedido #${order.orderNumber}*\\n\\n`;
-
-        if (customerInfo.name) message += `👤 Nome: ${customerInfo.name}\\n`;
-        if (customerInfo.table) message += `📍 Mesa: ${customerInfo.table}\\n`;
-        message += `\\n*Itens do Pedido:*\\n`;
-
-        items.forEach((cartItem) => {
-          const price = typeof cartItem.item.price === "number"
-            ? formatPrice(cartItem.item.price * cartItem.quantity)
-            : cartItem.item.price + " MT";
-          message += `• ${cartItem.quantity}x ${cartItem.item.name} - ${price}\\n`;
-        });
-
-        message += `\\n💰 *Total: ${formatPrice(totalPrice)}*`;
-
-        if (customerInfo.notes) {
-          message += `\\n\\n📝 Observações: ${customerInfo.notes}`;
-        }
-
-        message += `\\n\\nPor favor, confirme a disponibilidade. Obrigado!`;
-
-        const encodedMessage = encodeURIComponent(message);
-        window.open(`https://wa.me/${restaurantInfo.whatsapp}?text=${encodedMessage}`, "_blank");
-      }
 
       // Show success message
-      let successMessage = `Pedido #${order.orderNumber} criado com sucesso!`;
-      if (customerInfo.sendToAdmin && customerInfo.sendToWhatsApp) {
-        successMessage += " Enviado para o sistema e WhatsApp.";
-      } else if (customerInfo.sendToAdmin) {
-        successMessage += " Enviado para o sistema.";
-      } else if (customerInfo.sendToWhatsApp) {
-        successMessage += " Enviado via WhatsApp.";
-      }
-
-      toast.success(successMessage, {
+      toast.success(`Pedido #${order.orderNumber} criado com sucesso!`, {
         description: "Seu pedido está sendo processado.",
         duration: 5000,
       });
