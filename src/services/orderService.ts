@@ -290,8 +290,7 @@ export class OrderService {
                 status,
                 status_history: updatedHistory,
                 last_updated_by_role: actor.role,
-                last_updated_by_name: actor.name,
-                last_updated_by: actor.userId
+                last_updated_by_name: actor.name
             };
 
             // Auto-update timestamps based on status
@@ -358,7 +357,6 @@ export class OrderService {
                     accepted_at: new Date().toISOString(),
                     last_updated_by_role: actor.role,
                     last_updated_by_name: actor.name,
-                    last_updated_by: actor.userId,
                     status: 'confirmed' // Transition from pending to confirmed
                 })
                 .eq('id', orderId)
@@ -398,8 +396,7 @@ export class OrderService {
                 .update({
                     payment_type: paymentType,
                     last_updated_by_role: actor.role,
-                    last_updated_by_name: actor.name,
-                    last_updated_by: actor.userId
+                    last_updated_by_name: actor.name
                 })
                 .eq('id', orderId)
                 .select()
@@ -426,8 +423,7 @@ export class OrderService {
                     status: 'cancelled',
                     rejection_reason: reason,
                     last_updated_by_role: actor.role,
-                    last_updated_by_name: actor.name,
-                    last_updated_by: actor.userId
+                    last_updated_by_name: actor.name
                 })
                 .eq('id', orderId)
                 .select()

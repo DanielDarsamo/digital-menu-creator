@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { StaffService, StaffProfile } from "@/services/staffService";
-import { cn } from "@/lib/utils";
 import {
     Table,
     TableBody,
@@ -45,10 +44,6 @@ const StaffManagement = () => {
         loadStaff();
     }, []);
 
-
-
-    // ... existing imports ...
-
     const handleRoleChange = async (staffId: string, newRole: 'admin' | 'waiter') => {
         if (staffId === currentUser?.id) {
             toast.error("You cannot change your own role");
@@ -61,21 +56,6 @@ const StaffManagement = () => {
             setStaff(prev => prev.map(s => s.id === staffId ? { ...s, role: newRole } : s));
         } catch (error) {
             toast.error("Failed to update role");
-        }
-    };
-
-    const handleToggleStatus = async (staffId: string, isActive: boolean) => {
-        try {
-            // If activating, assume 'waiter' role if none set
-            const staffMember = staff.find(s => s.id === staffId);
-            const roleToSet = (isActive && !staffMember?.role) ? 'waiter' : undefined;
-
-            await StaffService.updateStaffStatus(staffId, isActive, roleToSet, supabase);
-
-            toast.success(isActive ? "Staff member approved/activated" : "Staff member deactivated");
-            loadStaff();
-        } catch (error) {
-            toast.error("Failed to update status");
         }
     };
 
@@ -126,7 +106,7 @@ const StaffManagement = () => {
                         Team Members
                     </CardTitle>
                     <CardDescription>
-                        Manage staff access. New sign-ups appear as inactive until approved.
+                        Administrators have full access, Waiters can only manage orders.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -135,16 +115,15 @@ const StaffManagement = () => {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-[300px]">Member</TableHead>
-                                    <TableHead>Status</TableHead>
                                     <TableHead>Role</TableHead>
-                                    <TableHead>Joined</TableHead>
+                                    <TableHead>Since</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {staff.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-8">
+                                        <TableCell colSpan={4} className="text-center py-8">
                                             No staff members found.
                                         </TableCell>
                                     </TableRow>
@@ -153,9 +132,7 @@ const StaffManagement = () => {
                                         <TableRow key={member.id} className="hover:bg-muted/50 transition-colors">
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
-                                                    <div className={cn("w-10 h-10 rounded-full flex items-center justify-center font-bold",
-                                                        member.is_active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                                    )}>
+                                                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
                                                         {member.full_name?.[0] || <UserIcon className="w-5 h-5" />}
                                                     </div>
                                                     <div>
@@ -166,21 +143,16 @@ const StaffManagement = () => {
                                                             )}
                                                         </div>
                                                         <div className="text-xs text-muted-foreground font-mono truncate max-w-[150px]">
-                                                            {member.phone || "No phone"}
+                                                            {member.id}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={member.is_active ? "default" : "destructive"}>
-                                                    {member.is_active ? "Active" : "Inactive"}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
                                                 <Select
-                                                    value={member.role || "waiter"}
+                                                    value={member.role}
                                                     onValueChange={(val: any) => handleRoleChange(member.id, val)}
-                                                    disabled={member.id === currentUser?.id || !member.is_active}
+                                                    disabled={member.id === currentUser?.id}
                                                 >
                                                     <SelectTrigger className="w-[130px] h-9">
                                                         <SelectValue />
@@ -195,36 +167,15 @@ const StaffManagement = () => {
                                                 {new Date(member.created_at).toLocaleDateString()}
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {!member.is_active && (
-                                                        <Button
-                                                            size="sm"
-                                                            className="h-8 bg-green-600 hover:bg-green-700 text-white"
-                                                            onClick={() => handleToggleStatus(member.id, true)}
-                                                        >
-                                                            Approve
-                                                        </Button>
-                                                    )}
-                                                    {member.is_active && member.id !== currentUser?.id && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200"
-                                                            onClick={() => handleToggleStatus(member.id, false)}
-                                                        >
-                                                            Deactivate
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                        disabled={member.id === currentUser?.id}
-                                                        onClick={() => handleDelete(member.id)}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    disabled={member.id === currentUser?.id}
+                                                    onClick={() => handleDelete(member.id)}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))

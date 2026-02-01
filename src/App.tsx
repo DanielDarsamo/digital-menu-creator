@@ -61,7 +61,9 @@ const App = () => {
                 <WaiterAuthProvider>
                   <Routes>
                     <Route path="/" element={
-                      <WaiterDashboard />
+                      <ProtectedRoute allowedRoles={['waiter']}>
+                        <WaiterDashboard />
+                      </ProtectedRoute>
                     } />
                     <Route path="*" element={
                       <WaiterDashboard />
