@@ -79,7 +79,25 @@ const App = () => {
                 </WaiterAuthProvider>
               } />
 
-              {/* 3. Standard/Public Zone - Uses Default AuthProvider */}
+              {/* 3. Kitchen Zone - Uses Default AuthProvider */}
+              <Route path="/kitchen/*" element={
+                <AuthProvider>
+                  <Routes>
+                    <Route path="/" element={
+                      <ProtectedRoute allowedRoles={['waiter', 'admin', 'chef']}>
+                        <KitchenDashboard />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="*" element={
+                      <ProtectedRoute allowedRoles={['waiter', 'admin', 'chef']}>
+                        <KitchenDashboard />
+                      </ProtectedRoute>
+                    } />
+                  </Routes>
+                </AuthProvider>
+              } />
+
+              {/* 4. Standard/Public Zone - Uses Default AuthProvider */}
               <Route path="*" element={
                 <AuthProvider>
                   <Routes>

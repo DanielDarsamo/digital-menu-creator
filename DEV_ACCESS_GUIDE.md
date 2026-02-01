@@ -31,10 +31,11 @@ http://localhost:8080/waiter
 ```
 http://localhost:8080/kitchen
 ```
-**Access to:**
-- Active orders
-- Print functionality
-- Status updates (preparing → ready)
+**✅ VERIFIED WORKING - Access to:**
+- Active orders (confirmed/preparing status)
+- Print functionality (individual and bulk)
+- Status updates (Start Preparing → Mark Ready)
+- Real-time order updates
 
 #### 🍽️ Customer Menu
 ```

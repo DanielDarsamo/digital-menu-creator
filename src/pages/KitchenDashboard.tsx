@@ -41,12 +41,28 @@ const KitchenDashboard = () => {
     }, []);
 
     const handleUpdateStatus = async (orderId: string, status: Order['status']) => {
-        const res = await OrderService.updateOrderStatus(orderId, status);
-        if (res) {
-            toast.success(`Order marked as ${status}`);
-            loadOrders();
-        } else {
-            toast.error("Failed to update status");
+        if (!user) {
+            toast.error("User not authenticated");
+            return;
+        }
+
+        try {
+            const actor = {
+                role: 'chef' as const,
+                name: user.user_metadata?.full_name || 'Kitchen Staff',
+                userId: user.id
+            };
+
+            const res = await OrderService.updateOrderStatus(orderId, status, actor);
+            if (res) {
+                toast.success(`Order marked as ${status}`);
+                loadOrders();
+            } else {
+                toast.error("Failed to update status");
+            }
+        } catch (error) {
+            console.error('Error updating order status:', error);
+            toast.error("Failed to update order status");
         }
     };
 
