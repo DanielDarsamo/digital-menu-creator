@@ -6,7 +6,7 @@ import HeroSection from "@/components/menu/HeroSection";
 import CategoryNav from "@/components/menu/CategoryNav";
 import SearchFilter from "@/components/menu/SearchFilter";
 import MenuSection from "@/components/menu/MenuSection";
-import WhatsAppButton from "@/components/menu/WhatsAppButton";
+
 import LocationButton from "@/components/menu/LocationButton";
 import Footer from "@/components/menu/Footer";
 import CartButton from "@/components/menu/CartButton";
@@ -113,7 +113,7 @@ const IndexContent = () => {
       </main>
       <Footer />
       <CartButton onClick={() => setIsCartOpen(true)} />
-      <WhatsAppButton />
+
       <LocationButton />
       <OrderCart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>
