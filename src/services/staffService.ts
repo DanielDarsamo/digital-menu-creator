@@ -5,9 +5,11 @@ import { SupabaseClient } from "@supabase/supabase-js";
 export interface StaffProfile {
     id: string;
     full_name: string | null;
-    role: 'admin' | 'waiter';
+    role: 'admin' | 'waiter' | 'chef';
     created_at: string;
     last_login: string | null;
+    is_active: boolean;
+    phone: string | null;
     email?: string; // Opted from auth join if possible, or just profile
 }
 
@@ -31,7 +33,7 @@ export class StaffService {
         }
     }
 
-    static async updateStaffRole(id: string, role: 'admin' | 'waiter', client: SupabaseClient = supabase) {
+    static async updateStaffRole(id: string, role: 'admin' | 'waiter' | 'chef', client: SupabaseClient = supabase) {
         try {
             const { data, error } = await client
                 .from('profiles')
@@ -44,6 +46,23 @@ export class StaffService {
             return data;
         } catch (error) {
             console.error('Error updating staff role:', error);
+            throw error;
+        }
+    }
+
+    static async updateStaffStatus(id: string, isActive: boolean, client: SupabaseClient = supabase) {
+        try {
+            const { data, error } = await client
+                .from('profiles')
+                .update({ is_active: isActive })
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+            return data;
+        } catch (error) {
+            console.error('Error updating staff status:', error);
             throw error;
         }
     }

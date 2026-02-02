@@ -20,7 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, ShieldCheck, User as UserIcon, RefreshCw, AlertCircle } from "lucide-react";
+import { Trash2, ShieldCheck, User as UserIcon, RefreshCw, AlertCircle, Phone, Power, PowerOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 const StaffManagement = () => {
@@ -44,7 +45,7 @@ const StaffManagement = () => {
         loadStaff();
     }, []);
 
-    const handleRoleChange = async (staffId: string, newRole: 'admin' | 'waiter') => {
+    const handleRoleChange = async (staffId: string, newRole: 'admin' | 'waiter' | 'chef') => {
         if (staffId === currentUser?.id) {
             toast.error("You cannot change your own role");
             return;
@@ -56,6 +57,22 @@ const StaffManagement = () => {
             setStaff(prev => prev.map(s => s.id === staffId ? { ...s, role: newRole } : s));
         } catch (error) {
             toast.error("Failed to update role");
+        }
+    };
+
+    const handleStatusToggle = async (staffId: string, currentStatus: boolean) => {
+        if (staffId === currentUser?.id) {
+            toast.error("You cannot deactivate yourself");
+            return;
+        }
+
+        try {
+            const newStatus = !currentStatus;
+            await StaffService.updateStaffStatus(staffId, newStatus, supabase);
+            toast.success(`Staff member ${newStatus ? 'activated' : 'deactivated'}`);
+            setStaff(prev => prev.map(s => s.id === staffId ? { ...s, is_active: newStatus } : s));
+        } catch (error) {
+            toast.error("Failed to update status");
         }
     };
 
@@ -106,7 +123,7 @@ const StaffManagement = () => {
                         Team Members
                     </CardTitle>
                     <CardDescription>
-                        Administrators have full access, Waiters can only manage orders.
+                        Administrators have full access, Waiters and Chefs have focused dashboards.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -114,9 +131,11 @@ const StaffManagement = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-[300px]">Member</TableHead>
+                                    <TableHead className="w-[200px]">Member</TableHead>
+                                    <TableHead>Contact</TableHead>
                                     <TableHead>Role</TableHead>
-                                    <TableHead>Since</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead>Last Login</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -149,22 +168,43 @@ const StaffManagement = () => {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                                                    {member.phone || <span className="text-muted-foreground italic text-xs">No phone</span>}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
                                                 <Select
                                                     value={member.role}
                                                     onValueChange={(val: any) => handleRoleChange(member.id, val)}
                                                     disabled={member.id === currentUser?.id}
                                                 >
-                                                    <SelectTrigger className="w-[130px] h-9">
+                                                    <SelectTrigger className="w-[110px] h-8 text-xs">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="admin">Administrator</SelectItem>
+                                                        <SelectItem value="admin">Admin</SelectItem>
                                                         <SelectItem value="waiter">Waiter</SelectItem>
+                                                        <SelectItem value="chef">Chef</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </TableCell>
-                                            <TableCell className="text-muted-foreground text-sm">
-                                                {new Date(member.created_at).toLocaleDateString()}
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Switch
+                                                        checked={member.is_active}
+                                                        onCheckedChange={() => handleStatusToggle(member.id, member.is_active)}
+                                                        disabled={member.id === currentUser?.id}
+                                                    />
+                                                    <Badge variant={member.is_active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                                                        {member.is_active ? "Active" : "Inactive"}
+                                                    </Badge>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-muted-foreground text-xs">
+                                                {member.last_login
+                                                    ? new Date(member.last_login).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                                                    : "Never"}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <Button
