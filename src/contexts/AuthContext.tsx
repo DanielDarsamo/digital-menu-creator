@@ -69,10 +69,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const fetchUserRole = async (userId: string) => {
         try {
             const { data, error } = await supabase
-                .from('profiles')
+                .from('user_roles')
                 .select('role')
-                .eq('id', userId)
-                .single();
+                .eq('user_id', userId)
+                .limit(1)
+                .maybeSingle();
 
             if (error) {
                 console.error('Error fetching role:', error);
@@ -82,6 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
         } catch (err) {
             console.error('Unexpected error fetching role:', err);
+            setRole(null);
         } finally {
             setLoading(false);
         }

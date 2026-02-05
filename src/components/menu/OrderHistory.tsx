@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Order, OrderService } from "@/services/orderService";
 import { useOrder } from "@/contexts/OrderContext";
+import { useSession } from "@/contexts/SessionContext";
 import { menuCategories } from "@/data/menuData";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,25 +17,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const OrderHistory = () => {
+    const { session } = useSession();
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const { addItem, clearCart } = useOrder();
 
     const loadHistory = async () => {
-        const saved = localStorage.getItem("customerDetails");
-        if (!saved) {
+        if (!session?.id) {
             setLoading(false);
             return;
         }
 
         try {
-            const { email, phone } = JSON.parse(saved);
-            if (!email && !phone) {
-                setLoading(false);
-                return;
-            }
-
-            const allOrders = await OrderService.getCustomerOrders(email, phone);
+            const allOrders = await OrderService.getOrdersBySessionId(session.id);
             // Filter detailed history (delivered or cancelled)
             const history = allOrders.filter(o =>
                 ['delivered', 'cancelled'].includes(o.status)
@@ -63,7 +58,7 @@ const OrderHistory = () => {
             OrderService.unsubscribeFromOrders(subscription);
             window.removeEventListener('orderUpdated', handleOrderUpdated);
         };
-    }, []);
+    }, [session?.id]);
 
     const handleReorder = (order: Order) => {
         // Clear current cart

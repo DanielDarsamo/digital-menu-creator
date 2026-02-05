@@ -558,6 +558,22 @@ export class OrderService {
         }
     }
 
+    static async getOrdersBySessionId(sessionId: string, client: SupabaseClient = supabase): Promise<Order[]> {
+        try {
+            const { data, error } = await client
+                .from('orders')
+                .select('*')
+                .eq('customer_session_id', sessionId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data ? data.map(this.dbToOrder) : [];
+        } catch (error) {
+            console.error('Failed to fetch session orders:', error);
+            return [];
+        }
+    }
+
     static unsubscribeFromOrders(subscription: any, client: SupabaseClient = supabase) {
         client.removeChannel(subscription);
     }
