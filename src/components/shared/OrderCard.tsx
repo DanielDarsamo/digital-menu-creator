@@ -54,6 +54,11 @@ interface OrderCardProps {
 }
 
 const statusConfig: Record<Order['status'], { label: string; icon: any; color: string }> = {
+    draft: {
+        label: "Rascunho",
+        icon: Clock,
+        color: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+    },
     pending: {
         label: "Pendente",
         icon: Clock,

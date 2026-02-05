@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Order, OrderService } from "@/services/orderService";
+import { useSession } from "@/contexts/SessionContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,24 +47,18 @@ const statusConfig = {
 };
 
 const OrderStatus = () => {
+    const { session } = useSession();
     const [activeOrders, setActiveOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
 
     const loadOrders = async () => {
-        const saved = localStorage.getItem("customerDetails");
-        if (!saved) {
+        if (!session?.id) {
             setLoading(false);
             return;
         }
 
         try {
-            const { email, phone } = JSON.parse(saved);
-            if (!email && !phone) {
-                setLoading(false);
-                return;
-            }
-
-            const allOrders = await OrderService.getCustomerOrders(email, phone);
+            const allOrders = await OrderService.getOrdersBySessionId(session.id);
             // Filter active orders (not delivered or cancelled)
             const active = allOrders.filter(o =>
                 ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
@@ -92,7 +87,7 @@ const OrderStatus = () => {
             OrderService.unsubscribeFromOrders(subscription);
             window.removeEventListener('orderCreated', handleOrderCreated);
         };
-    }, []);
+    }, [session?.id]);
 
     if (loading) return (
         <div className="flex justify-center p-4">
