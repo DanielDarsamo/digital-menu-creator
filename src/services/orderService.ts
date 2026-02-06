@@ -57,8 +57,6 @@ export class OrderService {
             totalPrice: parseFloat(row.total_price),
             customerInfo: {
                 name: row.customer_name || undefined,
-                email: row.customer_email || undefined,
-                phone: row.customer_phone || undefined,
                 table: row.customer_table || undefined,
                 notes: row.customer_notes || undefined,
             },
@@ -213,8 +211,6 @@ export class OrderService {
                 items: items,
                 total_price: totalPrice,
                 customer_name: customerInfo?.name || null,
-                customer_email: customerInfo?.email || null,
-                customer_phone: customerInfo?.phone || null,
                 customer_table: customerInfo?.table || null,
                 customer_notes: customerInfo?.notes || null,
                 status: 'pending',
@@ -570,6 +566,22 @@ export class OrderService {
             return data ? data.map(this.dbToOrder) : [];
         } catch (error) {
             console.error('Failed to fetch customer orders:', error);
+            return [];
+        }
+    }
+
+    static async getOrdersBySessionId(sessionId: string, client: SupabaseClient = supabase): Promise<Order[]> {
+        try {
+            const { data, error } = await client
+                .from('orders')
+                .select('*')
+                .eq('customer_session_id', sessionId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data ? data.map(this.dbToOrder) : [];
+        } catch (error) {
+            console.error('Failed to fetch session orders:', error);
             return [];
         }
     }
