@@ -1,9 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from "@/integrations/supabase/client";
 
-const supabaseUrl = 'https://roscelplipkkitiafqcq.supabase.co';
-const supabaseAnonKey = 'sb_publishable_l0LexwB9FlSiFUfl330SzA_6h7K2AH9';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { supabase };
 
 // Database types
 export interface Database {

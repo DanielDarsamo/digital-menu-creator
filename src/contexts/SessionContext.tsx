@@ -51,7 +51,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
                             customerName: data.customer_name,
                             phoneNumber: data.phone_number,
                             tableId: data.table_id,
-                            status: data.status,
+                            status: data.status as 'active' | 'closed',
                         });
                     } else {
                         // Invalid or closed session
@@ -90,7 +90,7 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
                     customerName: data.customer_name,
                     phoneNumber: data.phone_number,
                     tableId: data.table_id,
-                    status: data.status,
+                    status: data.status as 'active' | 'closed',
                 };
                 setSession(newSession);
                 localStorage.setItem("fortaleza-session-id", data.id);
