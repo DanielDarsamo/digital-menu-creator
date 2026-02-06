@@ -5,7 +5,8 @@ import { MenuItem, MenuCategory } from "@/data/menuData";
 
 export interface DBMenuItem {
     id: string;
-    category_id: string;
+    category: string;
+    category_id: string | null;
     name: string;
     description: string | null;
     price: number;
@@ -13,7 +14,7 @@ export interface DBMenuItem {
     is_vegetarian: boolean;
     is_seafood: boolean;
     is_kids_friendly: boolean;
-    is_available: boolean;
+    available: boolean;
 }
 
 export interface DBMenuCategory {
@@ -156,6 +157,7 @@ export class MenuService {
                 if (!existingItem) {
                     await this.createItem({
                         category_id: categoryId,
+                        category: item.category,
                         name: item.name,
                         description: item.description || null,
                         price: typeof item.price === 'string' ? parseFloat(item.price.split('/')[0]) : item.price, // Handle "180 / 850" format crudely for now or split
@@ -163,7 +165,7 @@ export class MenuService {
                         is_vegetarian: item.isVegetarian || false,
                         is_seafood: item.isSeafood || false,
                         is_kids_friendly: item.isKidsFriendly || false,
-                        is_available: true
+                        available: true
                     }, client);
                     createdCount++;
                 }

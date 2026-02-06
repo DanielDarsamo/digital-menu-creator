@@ -44,14 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      menu_categories: {
+        Row: {
+          created_at: string | null
+          icon: string
+          id: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string | null
+          icon?: string
+          id?: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string | null
+          icon?: string
+          id?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       menu_items: {
         Row: {
           available: boolean | null
           category: string
+          category_id: string | null
           created_at: string | null
           description: string | null
           id: string
           image_url: string | null
+          is_kids_friendly: boolean | null
+          is_seafood: boolean | null
+          is_vegetarian: boolean | null
           name: string
           price: number
           updated_at: string | null
@@ -59,10 +87,14 @@ export type Database = {
         Insert: {
           available?: boolean | null
           category: string
+          category_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
+          is_kids_friendly?: boolean | null
+          is_seafood?: boolean | null
+          is_vegetarian?: boolean | null
           name: string
           price: number
           updated_at?: string | null
@@ -70,15 +102,27 @@ export type Database = {
         Update: {
           available?: boolean | null
           category?: string
+          category_id?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           image_url?: string | null
+          is_kids_friendly?: boolean | null
+          is_seafood?: boolean | null
+          is_vegetarian?: boolean | null
           name?: string
           price?: number
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "menu_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orders: {
         Row: {

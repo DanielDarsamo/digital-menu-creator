@@ -31,10 +31,11 @@ const MenuManagement = () => {
         description: "",
         price: 0,
         category_id: "",
+        category: "",
         is_vegetarian: false,
         is_seafood: false,
         is_kids_friendly: false,
-        is_available: true,
+        available: true,
         image_url: ""
     });
 
@@ -100,7 +101,8 @@ const MenuManagement = () => {
             description: item.description,
             price: item.price,
             category_id: item.category, // Map correctly - ensure this matches category ID
-            is_available: true, // Default
+            category: item.category,
+            available: true, // Default
             image_url: item.image
         });
         setIsDialogOpen(true);
@@ -189,7 +191,7 @@ const MenuManagement = () => {
                                                 // Optimistic update
                                                 // API Call
                                                 // Note: we need to extend toggleAvailability in service if it exists, or updateItem.
-                                                MenuService.updateItem(item.id, { is_available: checked }, supabase).then(() => {
+                                                MenuService.updateItem(item.id, { available: checked }, supabase).then(() => {
                                                     toast.success(`Item ${checked ? 'enabled' : 'disabled'}`);
                                                     loadMenu();
                                                 });
