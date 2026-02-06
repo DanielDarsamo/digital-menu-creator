@@ -1,8 +1,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://roscelplipkkitiafqcq.supabase.co';
-const supabaseAnonKey = 'sb_publishable_l0LexwB9FlSiFUfl330SzA_6h7K2AH9';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables');
+}
 
 // Admin-specific client with isolated storage
 export const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey, {

@@ -517,6 +517,22 @@ export class OrderService {
         }
     }
 
+    static async getOrdersBySession(sessionId: string, client: SupabaseClient = supabase): Promise<Order[]> {
+        try {
+            const { data, error } = await client
+                .from('orders')
+                .select('*')
+                .eq('customer_session_id', sessionId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data ? data.map(this.dbToOrder) : [];
+        } catch (error) {
+            console.error('Failed to get orders by session:', error);
+            return [];
+        }
+    }
+
     static subscribeToOrders(callback: (payload: any) => void, client: SupabaseClient = supabase) {
         const subscription = client
             .channel('orders-channel')

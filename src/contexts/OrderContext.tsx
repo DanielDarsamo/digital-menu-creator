@@ -1,5 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { MenuItem } from "@/data/menuData";
+import { useSession } from "./SessionContext";
+import { OrderService } from "@/services/orderService";
+import { toast } from "sonner";
 
 export interface CartItem {
   item: MenuItem;
@@ -16,6 +19,8 @@ interface OrderContextType {
   clearCart: () => void;
   isAnimating: boolean;
   animatingItemId: string | null;
+  activeOrders: any[]; // Add active orders
+  refreshOrders: () => void; // Add manual refresh
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -33,24 +38,45 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
     const saved = localStorage.getItem("fortaleza-cart");
     return saved ? JSON.parse(saved) : [];
   });
+  const { session } = useSession();
+  const [activeOrders, setActiveOrders] = useState<any[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [animatingItemId, setAnimatingItemId] = useState<string | null>(null);
 
+  // Persist cart to localStorage
   useEffect(() => {
     localStorage.setItem("fortaleza-cart", JSON.stringify(items));
   }, [items]);
 
+  // Computed values
   const totalItems = items.reduce((sum, cartItem) => sum + cartItem.quantity, 0);
-  
   const totalPrice = items.reduce((sum, cartItem) => {
     const price = typeof cartItem.item.price === "number" ? cartItem.item.price : 0;
     return sum + price * cartItem.quantity;
   }, 0);
 
+  const refreshOrders = useCallback(async () => {
+    if (session?.id) {
+      const orders = await OrderService.getOrdersBySession(session.id);
+      setActiveOrders(orders);
+    } else {
+      setActiveOrders([]);
+    }
+  }, [session?.id]);
+
+  // Initial fetch and polling
+  useEffect(() => {
+    refreshOrders();
+
+    // Optional: Poll every 30 seconds to keep status updated
+    const interval = setInterval(refreshOrders, 30000);
+    return () => clearInterval(interval);
+  }, [refreshOrders]);
+
   const addItem = useCallback((item: MenuItem, quantity = 1) => {
     setAnimatingItemId(item.id);
     setIsAnimating(true);
-    
+
     setTimeout(() => {
       setIsAnimating(false);
       setAnimatingItemId(null);
@@ -87,6 +113,7 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = useCallback(() => {
     setItems([]);
+    localStorage.removeItem("fortaleza-cart");
   }, []);
 
   return (
@@ -101,6 +128,8 @@ export const OrderProvider = ({ children }: { children: ReactNode }) => {
         clearCart,
         isAnimating,
         animatingItemId,
+        activeOrders,
+        refreshOrders,
       }}
     >
       {children}

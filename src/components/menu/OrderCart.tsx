@@ -76,7 +76,7 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
           notes: customerInfo.notes,
         },
         customerInfo.sendToAdmin,
-        session?.id // Pass session ID
+        session?.id // Pass session ID explicitly
       );
 
 
@@ -97,6 +97,17 @@ const OrderCart = ({ isOpen, onClose }: OrderCartProps) => {
 
       // Clear cart and close dialogs
       clearCart();
+
+      // Store last order ID for immediate history lookup
+      if (session?.id) {
+        // Session based history handles it
+      } else {
+        // Local storage fallback for non-session users (if any)
+        const localHistory = JSON.parse(localStorage.getItem('order-history') || '[]');
+        localHistory.push(order.id);
+        localStorage.setItem('order-history', JSON.stringify(localHistory));
+      }
+
       setIsCustomerDialogOpen(false);
       onClose();
     } catch (error) {
