@@ -57,8 +57,6 @@ export class OrderService {
             totalPrice: parseFloat(row.total_price),
             customerInfo: {
                 name: row.customer_name || undefined,
-                email: row.customer_email || undefined,
-                phone: row.customer_phone || undefined,
                 table: row.customer_table || undefined,
                 notes: row.customer_notes || undefined,
             },
@@ -213,8 +211,6 @@ export class OrderService {
                 items: items,
                 total_price: totalPrice,
                 customer_name: customerInfo?.name || null,
-                customer_email: customerInfo?.email || null,
-                customer_phone: customerInfo?.phone || null,
                 customer_table: customerInfo?.table || null,
                 customer_notes: customerInfo?.notes || null,
                 status: 'pending',
