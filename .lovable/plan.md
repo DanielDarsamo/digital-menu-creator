@@ -1,319 +1,188 @@
 
 
-# Complete Fix Plan for Fortaleza de Sabores
+# Complete Database Setup and Menu Seeding Plan
 
-This plan addresses all identified issues including the build error, broken customer order tracking, and security improvements.
-
----
-
-## Summary of Changes
-
-| Priority | Issue | Files Affected |
-|----------|-------|----------------|
-| Critical | Build error - missing `draft` status in OrderCard | `src/components/shared/OrderCard.tsx` |
-| High | Customer order tracking uses deprecated localStorage | `src/components/menu/OrderStatus.tsx`, `src/components/menu/OrderHistory.tsx` |
-| High | OrderService needs session-based query method | `src/services/orderService.ts` |
-| Medium | Security - Move roles to separate table | New migration file |
+This plan will set up the required database tables, seed the menu data, and create an admin user for testing.
 
 ---
 
-## Phase 1: Fix Build Error
+## Overview
 
-**File: `src/components/shared/OrderCard.tsx`**
+| Task | Description |
+|------|-------------|
+| Create menu_categories table | Required by MenuService for category navigation |
+| Update menu_items schema | Add missing columns for dietary flags and category reference |
+| Seed menu data | Insert 70+ menu items across 13 categories |
+| Create admin user | Enable admin dashboard access for testing |
 
-Add the missing `draft` status to the `statusConfig` object at line 56:
+---
 
-```typescript
-const statusConfig: Record<Order['status'], { label: string; icon: any; color: string }> = {
-    draft: {
-        label: "Rascunho",
-        icon: Clock,
-        color: "bg-gray-500/10 text-gray-500 border-gray-500/20",
-    },
-    pending: {
-        label: "Pendente",
-        icon: Clock,
-        color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-    },
-    // ... rest of existing statuses
-};
+## Phase 1: Database Schema Updates
+
+### 1.1 Create menu_categories Table
+
+Create a new table to store menu category metadata:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.menu_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT '🍽️',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE public.menu_categories ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can view categories
+CREATE POLICY "Anyone can view menu categories"
+ON public.menu_categories FOR SELECT
+USING (true);
+
+-- Only admins can manage categories
+CREATE POLICY "Admins can manage menu categories"
+ON public.menu_categories FOR ALL
+TO authenticated
+USING (public.is_admin())
+WITH CHECK (public.is_admin());
+```
+
+### 1.2 Update menu_items Table
+
+Add missing columns to match MenuService expectations:
+
+```sql
+-- Add new columns for dietary information
+ALTER TABLE public.menu_items
+ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES public.menu_categories(id),
+ADD COLUMN IF NOT EXISTS is_vegetarian BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS is_seafood BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS is_kids_friendly BOOLEAN DEFAULT false;
+
+-- Rename 'available' to 'is_available' for consistency
+ALTER TABLE public.menu_items
+RENAME COLUMN available TO is_available;
 ```
 
 ---
 
-## Phase 2: Add Session-Based Order Query
+## Phase 2: Seed Menu Data
 
-**File: `src/services/orderService.ts`**
+### 2.1 Insert Categories (13 categories)
 
-Add a new method to fetch orders by session ID:
+Insert all restaurant menu categories with proper ordering:
+
+| Order | Category | Icon |
+|-------|----------|------|
+| 1 | Entradas | 🥗 |
+| 2 | Hambúrgueres | 🍔 |
+| 3 | Petiscos | 🍟 |
+| 4 | Sopas | 🍲 |
+| 5 | Pratos Principais | 🍽️ |
+| 6 | Tábuas | 🥩 |
+| 7 | Pizzas | 🍕 |
+| 8 | Massas | 🍝 |
+| 9 | Wraps | 🌯 |
+| 10 | Sobremesas | 🍰 |
+| 11 | Menu Infantil | 👶 |
+| 12 | Bebidas | 🥤 |
+| 13 | Vinhos e Cocktails | 🍷 |
+
+### 2.2 Insert Menu Items (70+ items)
+
+Sample items that will be inserted:
+
+**Entradas:**
+- Bruscheta Mista - 490 MT (Vegetarian)
+- Carpaccio de Carne - 750 MT
+- Salada Caesar - 520 MT
+- Camarão ao Alho - 890 MT (Seafood)
+
+**Hambúrgueres:**
+- Classic Burger - 650 MT
+- Bacon Lover - 750 MT
+- Fortaleza Burger - 950 MT
+- Veggie Burger - 580 MT (Vegetarian)
+
+**Pratos Principais:**
+- Picanha Grelhada - 1450 MT
+- Camarão à Moçambicana - 1650 MT (Seafood)
+- Frango à Cafreal - 890 MT
+
+**And 60+ more items across all categories...**
+
+---
+
+## Phase 3: Create Admin User
+
+Since there are no users in the system yet, I'll create an admin user entry that can be associated once a user signs up.
+
+**Option A: Sign up via the app and then assign admin role**
+
+After creating the user_roles table, run this SQL after someone signs up:
+
+```sql
+-- After user signs up, get their ID and assign admin role
+INSERT INTO public.user_roles (user_id, role)
+VALUES (
+    (SELECT id FROM auth.users WHERE email = 'admin@fortaleza.com'),
+    'admin'
+);
+```
+
+**Option B: I can provide a complete SQL script to run after signup**
+
+---
+
+## Phase 4: Update MenuService (Code Fix)
+
+The MenuService needs a small fix to handle the schema properly. Currently it expects `category_id` but should fall back to the `category` column if category_id is null.
 
 ```typescript
-static async getOrdersBySessionId(sessionId: string, client: SupabaseClient = supabase): Promise<Order[]> {
-    try {
-        const { data, error } = await client
-            .from('orders')
-            .select('*')
-            .eq('customer_session_id', sessionId)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        return data ? data.map(this.dbToOrder) : [];
-    } catch (error) {
-        console.error('Failed to fetch session orders:', error);
-        return [];
-    }
+// Fix mapDbItemToAppItem to handle both schemas
+private static mapDbItemToAppItem(dbItem: DBMenuItem): MenuItem {
+    return {
+        id: dbItem.id,
+        name: dbItem.name,
+        description: dbItem.description || undefined,
+        price: Number(dbItem.price),
+        category: dbItem.category_id || dbItem.category, // Fallback
+        image: dbItem.image_url || undefined,
+        isVegetarian: dbItem.is_vegetarian ?? false,
+        isSeafood: dbItem.is_seafood ?? false,
+        isKidsFriendly: dbItem.is_kids_friendly ?? false,
+    };
 }
 ```
 
 ---
 
-## Phase 3: Fix Customer Order Tracking
+## Implementation Order
 
-### 3A. Update OrderStatus Component
-
-**File: `src/components/menu/OrderStatus.tsx`**
-
-Replace the deprecated `localStorage.getItem("customerDetails")` pattern with the `useSession` hook:
-
-**Changes:**
-- Import `useSession` from `SessionContext`
-- Use `session.id` to fetch orders via the new `getOrdersBySessionId` method
-- Remove the deprecated email/phone lookup
-
-```typescript
-import { useSession } from "@/contexts/SessionContext";
-
-const OrderStatus = () => {
-    const { session } = useSession();
-    const [activeOrders, setActiveOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const loadOrders = async () => {
-        if (!session?.id) {
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const allOrders = await OrderService.getOrdersBySessionId(session.id);
-            const active = allOrders.filter(o =>
-                ['pending', 'confirmed', 'preparing', 'ready'].includes(o.status)
-            );
-            setActiveOrders(active);
-        } catch (e) {
-            console.error("Failed to load active orders", e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadOrders();
-        // ... subscription logic remains the same
-    }, [session?.id]);
-    
-    // ... rest of component unchanged
-};
-```
-
-### 3B. Update OrderHistory Component
-
-**File: `src/components/menu/OrderHistory.tsx`**
-
-Same pattern - replace localStorage with `useSession`:
-
-```typescript
-import { useSession } from "@/contexts/SessionContext";
-
-const OrderHistory = () => {
-    const { session } = useSession();
-    // ... existing state
-
-    const loadHistory = async () => {
-        if (!session?.id) {
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const allOrders = await OrderService.getOrdersBySessionId(session.id);
-            const history = allOrders.filter(o =>
-                ['delivered', 'cancelled'].includes(o.status)
-            );
-            setOrders(history);
-        } catch (e) {
-            console.error("Failed to load order history", e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadHistory();
-        // ... subscription logic unchanged
-    }, [session?.id]);
-    
-    // ... rest unchanged
-};
-```
-
----
-
-## Phase 4: Security - Create User Roles Table (Migration)
-
-**New File: `supabase/migrations/007_create_user_roles.sql`**
-
-This follows Supabase security best practices by storing roles in a separate table with SECURITY DEFINER functions to prevent privilege escalation.
-
-```sql
--- Migration 007: Create secure user_roles table
--- Following Supabase security best practices for role management
-
--- 1. Create role enum
-CREATE TYPE public.app_role AS ENUM ('admin', 'waiter', 'chef');
-
--- 2. Create user_roles table
-CREATE TABLE public.user_roles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    role app_role NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (user_id, role)
-);
-
--- 3. Enable RLS
-ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
--- 4. Create SECURITY DEFINER function to check roles
-CREATE OR REPLACE FUNCTION public.has_role(_user_id UUID, _role app_role)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-    SELECT EXISTS (
-        SELECT 1
-        FROM public.user_roles
-        WHERE user_id = _user_id
-        AND role = _role
-    )
-$$;
-
--- 5. Create SECURITY DEFINER function to get user's primary role
-CREATE OR REPLACE FUNCTION public.get_user_role(_user_id UUID)
-RETURNS app_role
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-    SELECT role
-    FROM public.user_roles
-    WHERE user_id = _user_id
-    LIMIT 1
-$$;
-
--- 6. RLS Policies for user_roles table
-CREATE POLICY "Users can view own roles" ON public.user_roles
-FOR SELECT TO authenticated
-USING (auth.uid() = user_id);
-
-CREATE POLICY "Admins can view all roles" ON public.user_roles
-FOR SELECT TO authenticated
-USING (public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY "Admins can manage roles" ON public.user_roles
-FOR ALL TO authenticated
-USING (public.has_role(auth.uid(), 'admin'))
-WITH CHECK (public.has_role(auth.uid(), 'admin'));
-
--- 7. Migrate existing roles from profiles table (if any exist)
-INSERT INTO public.user_roles (user_id, role)
-SELECT id, role::app_role
-FROM public.profiles
-WHERE role IS NOT NULL
-ON CONFLICT (user_id, role) DO NOTHING;
-
--- 8. Update helper functions to use new table
-CREATE OR REPLACE FUNCTION public.is_admin() 
-RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN public.has_role(auth.uid(), 'admin');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION public.is_waiter() 
-RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN public.has_role(auth.uid(), 'waiter');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION public.is_chef() 
-RETURNS BOOLEAN AS $$
-BEGIN
-    RETURN public.has_role(auth.uid(), 'chef');
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
----
-
-## Phase 5: Update AuthContext to Use New Roles Table
-
-**File: `src/contexts/AuthContext.tsx`**
-
-Update the `fetchUserRole` function to query from `user_roles` table instead of `profiles`:
-
-```typescript
-const fetchUserRole = async (userId: string) => {
-    try {
-        const { data, error } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', userId)
-            .limit(1)
-            .maybeSingle();
-
-        if (error) {
-            console.error('Error fetching role:', error);
-            setRole(null);
-        } else {
-            setRole(data?.role as UserRole);
-        }
-    } catch (err) {
-        console.error('Unexpected error fetching role:', err);
-        setRole(null);
-    } finally {
-        setLoading(false);
-    }
-};
-```
+1. **Create migration** for menu_categories table
+2. **Create migration** to update menu_items schema
+3. **Run seed SQL** to insert all categories and items
+4. **Update MenuService** code to handle schema
+5. **Test customer flow** by browsing menu and placing order
 
 ---
 
 ## Files to Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/shared/OrderCard.tsx` | Modify | Add missing `draft` status |
-| `src/services/orderService.ts` | Modify | Add `getOrdersBySessionId` method |
-| `src/components/menu/OrderStatus.tsx` | Modify | Use SessionContext instead of localStorage |
-| `src/components/menu/OrderHistory.tsx` | Modify | Use SessionContext instead of localStorage |
-| `supabase/migrations/007_create_user_roles.sql` | Create | New secure roles table |
-| `src/contexts/AuthContext.tsx` | Modify | Query from user_roles table |
+| File | Action |
+|------|--------|
+| New migration | Create menu_categories table |
+| New migration | Update menu_items schema |
+| `src/services/menuService.ts` | Fix type handling for backward compatibility |
 
 ---
 
-## Testing Checklist
+## Test After Implementation
 
-After implementation, verify:
-
-1. **Build succeeds** - No TypeScript errors
-2. **Customer flow** - Add items to cart, place order, see order status update
-3. **Order history** - Past orders display correctly for the session
-4. **Admin login** - Can access admin dashboard with proper role
-5. **Waiter login** - Can access waiter dashboard with proper role
-6. **Kitchen view** - Can view and update order statuses
+1. Visit the menu page - should see all 13 categories with items
+2. Click on items - modal should show with images and dietary badges
+3. Add items to cart - cart should calculate totals correctly
+4. Place an order - order should save to database with session_id
+5. Check order history - should show the placed order
 
