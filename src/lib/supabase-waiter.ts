@@ -1,8 +1,7 @@
-
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://roscelplipkkitiafqcq.supabase.co';
-const supabaseAnonKey = 'sb_publishable_l0LexwB9FlSiFUfl330SzA_6h7K2AH9';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Waiter-specific client with isolated storage
 export const supabaseWaiter = createClient(supabaseUrl, supabaseAnonKey, {
